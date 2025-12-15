@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-export const runtime = 'edge'
+// 使用 Node.js runtime 避免 Edge 10秒超时限制
+export const runtime = 'nodejs'
+export const maxDuration = 60 // 最大60秒
 
 // 软装风格描述
 const STYLE_DESCRIPTIONS: Record<string, { cn: string, en: string }> = {
