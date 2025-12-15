@@ -5,13 +5,15 @@ import { createClient } from '@supabase/supabase-js'
 export const runtime = 'nodejs'
 export const maxDuration = 60 // 最大60秒
 
-const supabase = createClient(
+// 懒加载 Supabase 客户端
+const getSupabase = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
 // 扣除积分的辅助函数
 async function deductPoints(userId: string, amount: number, description: string) {
+    const supabase = getSupabase()
     const { data: user, error: userError } = await supabase
         .from('users')
         .select('points')

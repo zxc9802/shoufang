@@ -3,12 +3,14 @@ import { createClient } from '@supabase/supabase-js'
 
 export const runtime = 'edge'
 
-const supabase = createClient(
+// 懒加载 Supabase 客户端，避免构建时因缺少环境变量报错
+const getSupabase = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
 export async function POST(req: NextRequest) {
+    const supabase = getSupabase()
     try {
         const { userId, code } = await req.json()
 
