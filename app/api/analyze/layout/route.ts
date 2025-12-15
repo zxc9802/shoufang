@@ -124,105 +124,6 @@ async function analyzeFloorPlanWithGemini(imageUrl: string, styleCn: string): Pr
         }
 
         const data = await response.json()
-        let content = data.choices?.[0]?.message?.content || ''
-
-        // 清理 markdown 代码块
-        content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-
-        try {
-            const parsed = JSON.parse(content)
-            return {
-                analysis: parsed.analysis || '',
-                rooms: parsed.rooms || []
-            }
-        } catch (e) {
-            console.log('JSON解析失败:', content.substring(0, 200))
-            return null
-        }
-
-    } catch (e) {
-        console.error('Gemini API error:', e)
-        return null
-    }
-}
-
-// 使用 Gemini 3 Pro 生成与户型图一致的3D效果图
-async function generateFloorPlanImage(imageUrl: string, styleEn: string): Promise<string | null> {
-    const apiKey = process.env.SYDNEY_AI_API_KEY
-    const baseUrl = process.env.SYDNEY_AI_BASE_URL || 'https://api.sydney-ai.com/v1'
-
-    if (!apiKey) {
-        console.log('未配置 SYDNEY_AI_API_KEY')
-        return null
-    }
-
-    const prompt = `Transform this floor plan into a 3D bird's eye view interior design render. Keep the exact same room layout and proportions. Add ${styleEn} furniture and decor. Top-down perspective showing all rooms with furniture, professional architectural visualization, warm natural lighting, 8K quality.`
-
-    try {
-        console.log('调用 Gemini 3 Pro 生成3D效果图...')
-
-        const response = await fetch(`${baseUrl}/chat/completions`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            },
-            body: JSON.stringify({
-                model: 'gemini-3-pro-image-preview-2k',
-                stream: false,
-                messages: [{
-                    role: 'user',
-                    content: [
-                        { type: 'text', text: prompt },
-                        { type: 'image_url', image_url: { url: imageUrl } }
-                    ]
-                }]
-            })
-        })
-
-        if (!response.ok) {
-            const errorText = await response.text()
-            console.log('Gemini Image API error:', response.status, errorText)
-            return null
-        }
-
-        const data = await response.json()
-        const content = data.choices?.[0]?.message?.content
-
-        // 解析响应中的图片
-        if (Array.isArray(content)) {
-            for (const item of content) {
-                if (item.type === 'image_url' || item.image_url) {
-                    return item.image_url?.url || item.url
-                }
-            }
-        }
-
-        if (typeof content === 'string') {
-            if (content.startsWith('data:image')) return content
-            const urlMatch = content.match(/https?:\/\/[^\s"']+\.(png|jpg|jpeg|webp)/i)
-            if (urlMatch) return urlMatch[0]
-        }
-
-        if (data.choices?.[0]?.message?.image_url) {
-            return data.choices[0].message.image_url
-        }
-
-        console.log('未找到图片')
-        return null
-
-    } catch (e) {
-        console.error('Gemini image error:', e)
-        return null
-    }
-}
-
-export async function POST(req: NextRequest) {
-    try {
-        const body = await req.json()
-        const { userId, imageUrl, style, scene } = body
-
         console.log('=== 户型分析 API (Sydney AI) ===')
         console.log('选择的风格:', style)
         console.log('选择的场景:', scene)
@@ -332,32 +233,14 @@ export async function POST(req: NextRequest) {
             storyScript = storyScript.replace(/\*\*/g, '').replace(/\*/g, '').replace(/#{1,6}\s*/g, '')
         }
 
-        console.log('✅ Step 2/3 完成')
-
-        // Step 3: 生成3D鸟瞰效果图（带重试）
-        console.log('Step 3/3: 生成3D效果图...')
-
-        let birdviewImage = null
-        for (let attempt = 1; attempt <= 3; attempt++) {
-            birdviewImage = await generateFloorPlanImage(imageUrl, styleInfo.en)
-            if (birdviewImage) {
-                console.log('✅ Step 3/3 完成：效果图生成成功')
-                break
-            }
-            if (attempt < 3) {
-                console.log(`⚠️ 尝试 ${attempt} 失败，等待5秒后重试...`)
-                await new Promise(resolve => setTimeout(resolve, 5000))
-            } else {
-                console.log('⚠️ Step 3/3：效果图生成失败（已重试3次）')
-            }
-        }
+        console.log('✅ Step 2/2: 分析完成')
 
         return NextResponse.json({
             analysis,
             roomSuggestions: rooms,
             storyScript,
-            birdviewImage,
             styleName: styleInfo.cn,
+            styleEn: styleInfo.en, // 返回英文风格名供第二步使用
             sceneName: sceneInfo.cn,
             newPoints
         })

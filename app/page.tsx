@@ -201,14 +201,48 @@ export default function Home() {
         throw new Error(data.error || '分析失败')
       }
 
+      // Step 1: 先显示文字分析结果
       setLayoutResult(data)
+      setLayoutStatus('')
 
-      // 更新本地积分
+      // 更新本地积分（文字分析扣分）
       if (data.newPoints !== undefined) {
         updatePoints(data.newPoints)
       }
 
-      setLayoutStatus('')
+      // Step 2: 如果有返回 styleEn，则继续生成图片
+      if (data.styleEn) {
+        setLayoutStatus('正在生成3D效果图...')
+        try {
+          const renderRes = await fetch('/api/generate/render', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user.id,
+              imageUrl: publicUrl,
+              styleEn: data.styleEn
+            })
+          })
+
+          if (renderRes.ok) {
+            const renderData = await renderRes.json()
+            if (renderData.imageUrl) {
+              // 更新 layoutResult，合并图片
+              setLayoutResult(prev => prev ? ({ ...prev, birdviewImage: renderData.imageUrl }) : prev)
+            }
+          } else {
+            console.error('Render failed:', await renderRes.text())
+            // 图片生成失败不影响文字结果
+            setLayoutError('效果图生成暂不可用，但文字分析已完成')
+            setTimeout(() => setLayoutError(''), 3000)
+          }
+        } catch (e) {
+          console.error('Render request failed', e)
+        } finally {
+          setLayoutStatus('')
+        }
+      }
+
     } catch (err: any) {
       clearInterval(statusInterval)
       console.error(err)
