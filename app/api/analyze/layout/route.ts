@@ -78,13 +78,13 @@ const STORY_SCRIPT_PROMPT = `你是房产文案专家。
 直接输出文字`
 
 // 使用 Sydney AI Gemini 3 Pro 识别户型图并生成软装建议
-async function analyzeFloorPlanWithGemini(imageUrl: string, styleCn: string): Promise<{ analysis: string, rooms: any[] } | null> {
+async function analyzeFloorPlanWithGemini(imageUrl: string, styleCn: string): Promise<{ analysis: string, rooms: any[], error?: string } | null> {
     const apiKey = process.env.SYDNEY_AI_API_KEY
     const baseUrl = process.env.SYDNEY_AI_BASE_URL || 'https://api.sydney-ai.com/v1'
 
     if (!apiKey) {
         console.log('未配置 SYDNEY_AI_API_KEY')
-        return null
+        return { analysis: '', rooms: [], error: 'SYDNEY_AI_API_KEY未配置' }
     }
 
     const prompt = ROOM_SUGGESTIONS_PROMPT.replace('{STYLE_DESCRIPTION}', styleCn)
@@ -114,7 +114,7 @@ async function analyzeFloorPlanWithGemini(imageUrl: string, styleCn: string): Pr
         if (!response.ok) {
             const errorText = await response.text()
             console.log('Gemini API error:', response.status, errorText)
-            return null
+            return { analysis: '', rooms: [], error: `Gemini API错误: ${response.status}` }
         }
 
         const data = await response.json()
@@ -283,8 +283,9 @@ export async function POST(req: NextRequest) {
 
         const analysisResult = await analyzeFloorPlanWithGemini(imageUrl, styleInfo.cn)
 
-        if (!analysisResult) {
-            return NextResponse.json({ error: '户型识别失败' }, { status: 500 })
+        if (!analysisResult || analysisResult.error) {
+            const errorDetail = analysisResult?.error || '未知错误'
+            return NextResponse.json({ error: `户型识别失败：${errorDetail}` }, { status: 500 })
         }
 
         const { analysis, rooms } = analysisResult
