@@ -1,55 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+// Vercel Edge Runtime - 无超时限制
+export const runtime = 'edge'
+
 export async function POST(req: NextRequest) {
     try {
         const { images, propertyInfo } = await req.json()
 
         console.log('=== API Called ===')
 
-        const GLM_API_KEY = process.env.GLM_API_KEY
-        const GLM_API_URL = process.env.GLM_API_URL
         const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY
 
-        // Step 1: GLM-4.6v 识图
-        console.log('=== Step 1: GLM Vision ===')
-        let imageFeatures = '现代简约风格，采光良好'
-
-        if (GLM_API_KEY && GLM_API_URL) {
-            try {
-                const imageContent: any[] = images.slice(0, 3).map((url: string) => ({
-                    type: 'image_url',
-                    image_url: { url }
-                }))
-                imageContent.push({
-                    type: 'text',
-                    text: '分析这些房源照片的装修材质、风格、采光、空间特征，用一句话总结（30字内）'
-                })
-
-                const glmRes = await fetch(GLM_API_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${GLM_API_KEY}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        model: 'glm-4.6v',
-                        messages: [{ role: 'user', content: imageContent }]
-                    })
-                })
-
-                if (glmRes.ok) {
-                    const data = await glmRes.json()
-                    imageFeatures = data.choices?.[0]?.message?.content?.trim() || imageFeatures
-                    console.log('✅ 识图成功:', imageFeatures)
-                }
-            } catch (e) {
-                console.log('识图跳过')
-            }
+        if (!DEEPSEEK_API_KEY) {
+            return NextResponse.json({ error: '缺少API配置' }, { status: 500 })
         }
 
-        // Step 2: DeepSeek 生成文案
-        console.log('=== Step 2: DeepSeek ===')
-
+        // 直接使用 DeepSeek 生成文案（比分两步更快）
         const prompt = `你是专业房产文案专家。根据以下信息生成可直接复制使用的文案：
 
 【房源信息】
@@ -58,7 +24,7 @@ export async function POST(req: NextRequest) {
 小区：${propertyInfo.communityName}
 价格：${propertyInfo.price}万
 亮点：${propertyInfo.highlights.join('、') || '无'}
-图片分析：${imageFeatures}
+图片数量：${images?.length || 0}张
 
 【输出要求】严格按格式输出：
 
@@ -78,7 +44,7 @@ export async function POST(req: NextRequest) {
 ===朋友圈版===
 （100-200字简洁文案，直接可发布到微信）`
 
-        const deepseekRes = await fetch('https://api.deepseek.com/chat/completions', {
+        const response = await fetch('https://api.deepseek.com/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -87,25 +53,21 @@ export async function POST(req: NextRequest) {
             body: JSON.stringify({
                 model: 'deepseek-chat',
                 messages: [
-                    { role: 'system', content: '你是专业的房产营销文案专家，擅长撰写各平台风格的房源文案' },
+                    { role: 'system', content: '你是专业的房产营销文案专家' },
                     { role: 'user', content: prompt }
                 ],
                 stream: false
             })
         })
 
-        console.log('DeepSeek Status:', deepseekRes.status)
-
-        if (!deepseekRes.ok) {
-            const err = await deepseekRes.text()
-            console.error('DeepSeek Error:', err)
-            throw new Error(`DeepSeek失败: ${err.substring(0, 100)}`)
+        if (!response.ok) {
+            const err = await response.text()
+            console.error('API Error:', err)
+            throw new Error(`API失败: ${response.status}`)
         }
 
-        const data = await deepseekRes.json()
+        const data = await response.json()
         const fullContent = data.choices?.[0]?.message?.content || ''
-
-        console.log('✅ 文案生成成功')
 
         // 解析内容
         const sellingMatch = fullContent.match(/===卖点===([\s\S]*?)===贝壳版===/)
