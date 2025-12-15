@@ -115,7 +115,6 @@ async function analyzeFloorPlanWithGemini(imageUrl: string, styleCn: string): Pr
         if (!response.ok) {
             const errorText = await response.text()
             console.log('Gemini API error:', response.status, errorText)
-            // 返回更详细的错误信息
             let errorDetail = `Gemini API错误: ${response.status}`
             if (response.status === 403) {
                 errorDetail = `访问被拒绝(403)：可能是API Key无效或地区限制。详情: ${errorText.substring(0, 100)}`
@@ -124,27 +123,53 @@ async function analyzeFloorPlanWithGemini(imageUrl: string, styleCn: string): Pr
         }
 
         const data = await response.json()
-        console.log('=== 户型分析 API (Sydney AI) ===')
+        let content = data.choices?.[0]?.message?.content || ''
+
+        // 清理 markdown 代码块
+        content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+
+        try {
+            const parsed = JSON.parse(content)
+            return {
+                analysis: parsed.analysis || '',
+                rooms: parsed.rooms || []
+            }
+        } catch (e) {
+            console.log('JSON解析失败:', content.substring(0, 200))
+            return null
+        }
+
+    } catch (e) {
+        console.error('Gemini API error:', e)
+        return null
+    }
+}
+
+// 懒加载 Supabase 客户端
+const getSupabase = () => createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
+export async function POST(req: NextRequest) {
+    try {
+        const body = await req.json()
+        const { userId, imageUrl, style, scene } = body
+
+        console.log('=== 户型分析 API (Text Only) ===')
         console.log('选择的风格:', style)
         console.log('选择的场景:', scene)
 
-        // 检查是否登录
         if (!userId) {
             return NextResponse.json({ error: '请先登录' }, { status: 401 })
         }
 
         const SYDNEY_API_KEY = process.env.SYDNEY_AI_API_KEY
-        const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY
-
         if (!SYDNEY_API_KEY) {
             return NextResponse.json({ error: '缺少SYDNEY_AI_API_KEY' }, { status: 500 })
         }
 
-        // 扣除积分（15积分）
-        const supabase = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!
-        )
+        const supabase = getSupabase()
 
         // 获取当前积分
         const { data: user, error: userError } = await supabase
@@ -163,22 +188,21 @@ async function analyzeFloorPlanWithGemini(imageUrl: string, styleCn: string): Pr
             }, { status: 403 })
         }
 
+        // 预先扣除积分（15积分）
         const newPoints = user.points - 15
 
-        // 更新积分
         await supabase
             .from('users')
             .update({ points: newPoints })
             .eq('id', userId)
 
-        // 记录交易
         await supabase
             .from('point_transactions')
             .insert({
                 user_id: userId,
                 amount: -15,
                 type: 'consume',
-                description: '户型图分析',
+                description: `户型分析: ${style}`,
                 balance_after: newPoints
             })
 
@@ -186,9 +210,8 @@ async function analyzeFloorPlanWithGemini(imageUrl: string, styleCn: string): Pr
 
         const styleInfo = STYLE_DESCRIPTIONS[style] || STYLE_DESCRIPTIONS.cream
 
-        // Step 1: 用 Gemini 识别户型图并生成软装建议
-        console.log('Step 1/3: 识别户型图并生成软装建议...')
-
+        // Step 1: 识别户型图
+        console.log('Step 1/2: 识别户型图...')
         const analysisResult = await analyzeFloorPlanWithGemini(imageUrl, styleInfo.cn)
 
         if (!analysisResult || analysisResult.error) {
@@ -197,12 +220,12 @@ async function analyzeFloorPlanWithGemini(imageUrl: string, styleCn: string): Pr
         }
 
         const { analysis, rooms } = analysisResult
-        console.log(`✅ Step 1/3 完成（${rooms.length}个房间）`)
+        console.log(`✅ Step 1/2 完成`)
 
         // Step 2: 生成场景剧本
-        console.log('Step 2/3: 生成场景剧本...')
-
+        console.log('Step 2/2: 生成场景剧本...')
         const sceneInfo = SCENE_DESCRIPTIONS[scene] || SCENE_DESCRIPTIONS.single
+        const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY
 
         let storyScript = ''
         if (DEEPSEEK_API_KEY) {
@@ -212,28 +235,31 @@ async function analyzeFloorPlanWithGemini(imageUrl: string, styleCn: string): Pr
                 .replace(/{SCENE_PERSONA}/g, sceneInfo.cn)
                 .replace('{SCENE_KEYWORDS}', sceneInfo.keywords)
 
-            const scriptRes = await fetch('https://api.deepseek.com/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
-                },
-                body: JSON.stringify({
-                    model: 'deepseek-chat',
-                    messages: [
-                        { role: 'system', content: '你是房产文案专家' },
-                        { role: 'user', content: scriptPrompt }
-                    ],
-                    stream: false
+            try {
+                const scriptRes = await fetch('https://api.deepseek.com/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: 'deepseek-chat',
+                        messages: [
+                            { role: 'system', content: '你是房产文案专家' },
+                            { role: 'user', content: scriptPrompt }
+                        ],
+                        stream: false
+                    })
                 })
-            })
-
-            const scriptData = await scriptRes.json()
-            storyScript = scriptData.choices?.[0]?.message?.content?.trim() || ''
-            storyScript = storyScript.replace(/\*\*/g, '').replace(/\*/g, '').replace(/#{1,6}\s*/g, '')
+                const scriptData = await scriptRes.json()
+                storyScript = scriptData.choices?.[0]?.message?.content?.trim() || ''
+                // 清理 markdown
+                storyScript = storyScript.replace(/\*\*/g, '').replace(/\*/g, '').replace(/#{1,6}\s*/g, '')
+            } catch (e) {
+                console.error('Script generation failed:', e)
+                // 剧本生成失败不影响主要流程
+            }
         }
-
-        console.log('✅ Step 2/2: 分析完成')
 
         return NextResponse.json({
             analysis,
@@ -246,7 +272,7 @@ async function analyzeFloorPlanWithGemini(imageUrl: string, styleCn: string): Pr
         })
 
     } catch (error) {
-        console.error('Error:', error)
+        console.error('Analyze error:', error)
         return NextResponse.json({
             error: '分析失败：' + (error as Error).message
         }, { status: 500 })
