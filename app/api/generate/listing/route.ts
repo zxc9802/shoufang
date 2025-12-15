@@ -182,17 +182,27 @@ export async function POST(req: NextRequest) {
             beikeRes.json()
         ])
 
-        const xhsContent = xhsData.choices?.[0]?.message?.content || ''
-        const momentsContent = momentsData.choices?.[0]?.message?.content || ''
-        const beikeContent = beikeData.choices?.[0]?.message?.content || ''
+        // 清理Markdown符号的函数
+        const cleanContent = (text: string) => {
+            return text
+                .replace(/^#{1,6}\s*/gm, '')  // 删除标题符号 ###
+                .replace(/\*\*/g, '')          // 删除加粗 **
+                .replace(/\*/g, '')            // 删除单个 *
+                .replace(/^-\s+/gm, '• ')      // 将 - 列表替换为 •
+                .trim()
+        }
+
+        const xhsContent = cleanContent(xhsData.choices?.[0]?.message?.content || '')
+        const momentsContent = cleanContent(momentsData.choices?.[0]?.message?.content || '')
+        const beikeContent = cleanContent(beikeData.choices?.[0]?.message?.content || '')
 
         console.log('✅ 三平台文案生成成功')
 
-        // 从小红书文案中提取卖点
+        // 从亮点中提取卖点
         const sellingPoints = [
-            '• ' + propertyInfo.highlights[0] || '优质房源',
-            '• ' + propertyInfo.highlights[1] || '交通便利',
-            '• ' + propertyInfo.highlights[2] || '装修精美',
+            '• ' + (propertyInfo.highlights[0] || '优质房源'),
+            '• ' + (propertyInfo.highlights[1] || '交通便利'),
+            '• ' + (propertyInfo.highlights[2] || '装修精美'),
             '• 采光充足，空间通透',
             '• 拎包入住，配套齐全'
         ]
