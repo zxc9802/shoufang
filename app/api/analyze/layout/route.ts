@@ -99,7 +99,7 @@ async function analyzeFloorPlanWithGemini(imageUrl: string, styleCn: string): Pr
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'gemini-2.0-flash',
+                model: 'gemini-3-pro-image-preview-2k',
                 stream: false,
                 messages: [{
                     role: 'user',
@@ -162,7 +162,7 @@ async function generateFloorPlanImage(imageUrl: string, styleEn: string): Promis
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'gemini-2.0-flash',
+                model: 'gemini-3-pro-image-preview-2k',
                 stream: false,
                 messages: [{
                     role: 'user',
