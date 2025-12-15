@@ -114,7 +114,12 @@ async function analyzeFloorPlanWithGemini(imageUrl: string, styleCn: string): Pr
         if (!response.ok) {
             const errorText = await response.text()
             console.log('Gemini API error:', response.status, errorText)
-            return { analysis: '', rooms: [], error: `Gemini API错误: ${response.status}` }
+            // 返回更详细的错误信息
+            let errorDetail = `Gemini API错误: ${response.status}`
+            if (response.status === 403) {
+                errorDetail = `访问被拒绝(403)：可能是API Key无效或地区限制。详情: ${errorText.substring(0, 100)}`
+            }
+            return { analysis: '', rooms: [], error: errorDetail }
         }
 
         const data = await response.json()
