@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 
 // 使用 Node.js runtime 避免 Edge 10秒超时限制
 export const runtime = 'nodejs'
-export const maxDuration = 60 // 最大60秒
+export const maxDuration = 300 // 增加到300秒，适配 Zeabur
 
 // 软装风格描述
 const STYLE_DESCRIPTIONS: Record<string, { cn: string, en: string }> = {
