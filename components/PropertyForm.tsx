@@ -8,6 +8,7 @@ export interface PropertyInfo {
     communityName: string
     price: string
     highlights: string[]
+    platforms: string[]
 }
 
 interface PropertyFormProps {
@@ -16,6 +17,11 @@ interface PropertyFormProps {
 
 const HOUSE_TYPES = ['1室', '2室1厅', '2室2厅', '3室1厅', '3室2厅', '4室2厅', '自定义']
 const HIGHLIGHT_OPTIONS = ['地铁近', '学区房', '朝南', '精装修', '电梯房', '低楼层', '有车位', '采光好']
+const PLATFORM_OPTIONS = [
+    { id: 'beike', name: '贝壳找房', icon: '🏠', desc: '专业房产平台' },
+    { id: 'xiaohongshu', name: '小红书', icon: '📕', desc: '种草笔记风格' },
+    { id: 'moments', name: '朋友圈', icon: '💬', desc: '朋友圈推广' }
+]
 
 export default function PropertyForm({ onSubmit }: PropertyFormProps) {
     const [formData, setFormData] = useState<PropertyInfo>({
@@ -23,7 +29,8 @@ export default function PropertyForm({ onSubmit }: PropertyFormProps) {
         area: '',
         communityName: '',
         price: '',
-        highlights: []
+        highlights: [],
+        platforms: ['beike']
     })
 
     const [customHouseType, setCustomHouseType] = useState('')
@@ -46,6 +53,15 @@ export default function PropertyForm({ onSubmit }: PropertyFormProps) {
             highlights: prev.highlights.includes(highlight)
                 ? prev.highlights.filter(h => h !== highlight)
                 : [...prev.highlights, highlight]
+        }))
+    }
+
+    const togglePlatform = (platformId: string) => {
+        setFormData(prev => ({
+            ...prev,
+            platforms: prev.platforms.includes(platformId)
+                ? prev.platforms.filter(p => p !== platformId)
+                : [...prev.platforms, platformId]
         }))
     }
 
@@ -223,11 +239,44 @@ export default function PropertyForm({ onSubmit }: PropertyFormProps) {
                 )}
             </div>
 
+            {/* 平台选择 */}
+            <div>
+                <label className="block text-sm font-medium text-white/80 mb-2">
+                    选择生成平台 <span className="text-amber-400">(每个平台2积分)</span>
+                </label>
+                <div className="grid grid-cols-3 gap-3">
+                    {PLATFORM_OPTIONS.map(platform => (
+                        <button
+                            key={platform.id}
+                            type="button"
+                            onClick={() => togglePlatform(platform.id)}
+                            className={`relative p-4 rounded-xl border-2 transition-all ${formData.platforms.includes(platform.id)
+                                    ? 'border-amber-400 bg-amber-400/20'
+                                    : 'border-white/20 bg-white/5 hover:bg-white/10'
+                                }`}
+                        >
+                            <div className="text-2xl mb-1">{platform.icon}</div>
+                            <div className="text-white font-medium text-sm">{platform.name}</div>
+                            <div className="text-white/50 text-xs">{platform.desc}</div>
+                            {formData.platforms.includes(platform.id) && (
+                                <div className="absolute top-2 right-2 w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center">
+                                    <span className="text-slate-900 text-xs">✓</span>
+                                </div>
+                            )}
+                        </button>
+                    ))}
+                </div>
+                {formData.platforms.length === 0 && (
+                    <p className="mt-2 text-red-400 text-sm">请至少选择一个平台</p>
+                )}
+            </div>
+
             <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-900 font-semibold py-3 px-6 rounded-lg hover:from-amber-500 hover:to-yellow-600 transition-all shadow-lg hover:shadow-xl"
+                disabled={formData.platforms.length === 0}
+                className="w-full bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-900 font-semibold py-3 px-6 rounded-lg hover:from-amber-500 hover:to-yellow-600 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
             >
-                ✨ 开始生成文案 (消耗10积分)
+                ✨ 开始生成文案 (消耗{formData.platforms.length * 2}积分)
             </button>
         </form>
     )

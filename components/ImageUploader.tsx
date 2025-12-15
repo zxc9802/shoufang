@@ -6,16 +6,15 @@ import Image from 'next/image'
 
 interface ImageUploaderProps {
     onImagesChange: (files: File[]) => void
-    maxImages?: number
 }
 
-export default function ImageUploader({ onImagesChange, maxImages = 9 }: ImageUploaderProps) {
+export default function ImageUploader({ onImagesChange }: ImageUploaderProps) {
     const [selectedFiles, setSelectedFiles] = useState<File[]>([])
     const [previews, setPreviews] = useState<string[]>([])
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || [])
-        const newFiles = [...selectedFiles, ...files].slice(0, maxImages)
+        const newFiles = [...selectedFiles, ...files]
 
         setSelectedFiles(newFiles)
         onImagesChange(newFiles)
@@ -54,22 +53,20 @@ export default function ImageUploader({ onImagesChange, maxImages = 9 }: ImageUp
                     </div>
                 ))}
 
-                {selectedFiles.length < maxImages && (
-                    <label className="aspect-square rounded-lg border-2 border-dashed border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10 cursor-pointer transition-all flex flex-col items-center justify-center">
-                        <Upload className="w-8 h-8 text-white/50 mb-2" />
-                        <span className="text-sm text-white/50">上传图片</span>
-                        <span className="text-xs text-white/30 mt-1">
-                            {selectedFiles.length}/{maxImages}
-                        </span>
-                        <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={handleFileSelect}
-                            className="hidden"
-                        />
-                    </label>
-                )}
+                <label className="aspect-square rounded-lg border-2 border-dashed border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10 cursor-pointer transition-all flex flex-col items-center justify-center">
+                    <Upload className="w-8 h-8 text-white/50 mb-2" />
+                    <span className="text-sm text-white/50">上传图片</span>
+                    <span className="text-xs text-white/30 mt-1">
+                        {selectedFiles.length > 0 ? `已选${selectedFiles.length}张` : '点击添加'}
+                    </span>
+                    <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleFileSelect}
+                        className="hidden"
+                    />
+                </label>
             </div>
 
             {selectedFiles.length > 0 && (

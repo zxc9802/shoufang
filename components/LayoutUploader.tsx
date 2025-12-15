@@ -1,72 +1,89 @@
 'use client'
 
-import { useState } from 'react'
-import { Upload, X } from 'lucide-react'
-import Image from 'next/image'
+import { useState, useRef } from 'react'
+import { Upload, X, Home } from 'lucide-react'
 
 interface LayoutUploaderProps {
-    onImageChange: (file: File | null) => void
+    onImageChange: (file: File | null, preview: string | null) => void
 }
 
 export default function LayoutUploader({ onImageChange }: LayoutUploaderProps) {
-    const [selectedFile, setSelectedFile] = useState<File | null>(null)
-    const [preview, setPreview] = useState<string>('')
+    const [preview, setPreview] = useState<string | null>(null)
+    const [isDragging, setIsDragging] = useState(false)
+    const inputRef = useRef<HTMLInputElement>(null)
 
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0]
-        if (file) {
-            setSelectedFile(file)
-            onImageChange(file)
+    const handleFile = (file: File) => {
+        if (!file.type.startsWith('image/')) return
 
-            // Generate preview
-            const previewUrl = URL.createObjectURL(file)
+        const reader = new FileReader()
+        reader.onload = (e) => {
+            const previewUrl = e.target?.result as string
             setPreview(previewUrl)
+            onImageChange(file, previewUrl)
         }
+        reader.readAsDataURL(file)
+    }
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault()
+        setIsDragging(false)
+        const file = e.dataTransfer.files[0]
+        if (file) handleFile(file)
+    }
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (file) handleFile(file)
     }
 
     const removeImage = () => {
-        setSelectedFile(null)
-        setPreview('')
-        onImageChange(null)
+        setPreview(null)
+        onImageChange(null, null)
+        if (inputRef.current) inputRef.current.value = ''
     }
 
     return (
         <div className="space-y-4">
-            {preview ? (
-                <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-white/5 border border-white/10">
-                    <Image
+            {!preview ? (
+                <div
+                    onClick={() => inputRef.current?.click()}
+                    onDrop={handleDrop}
+                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+                    onDragLeave={() => setIsDragging(false)}
+                    className={`relative border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-all
+            ${isDragging
+                            ? 'border-amber-400 bg-amber-400/10'
+                            : 'border-white/30 hover:border-white/50 bg-white/5'
+                        }`}
+                >
+                    <input
+                        ref={inputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleChange}
+                        className="hidden"
+                    />
+                    <Home className="w-16 h-16 mx-auto text-white/40 mb-4" />
+                    <p className="text-white/60 text-lg mb-2">点击或拖拽上传户型图</p>
+                    <p className="text-white/40 text-sm">支持 JPG、PNG 格式，建议清晰拍摄的户型图</p>
+                </div>
+            ) : (
+                <div className="relative">
+                    <img
                         src={preview}
                         alt="户型图预览"
-                        fill
-                        className="object-contain"
+                        className="w-full max-h-96 object-contain rounded-xl border border-white/20"
                     />
                     <button
                         onClick={removeImage}
-                        className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 transition-colors"
+                        className="absolute top-2 right-2 bg-red-500/80 hover:bg-red-500 text-white p-2 rounded-full transition-colors"
                     >
                         <X className="w-5 h-5" />
                     </button>
+                    <div className="absolute bottom-2 left-2 bg-black/60 text-white text-sm px-3 py-1 rounded-full">
+                        🏠 户型图已上传
+                    </div>
                 </div>
-            ) : (
-                <label className="aspect-[4/3] rounded-lg border-2 border-dashed border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10 cursor-pointer transition-all flex flex-col items-center justify-center">
-                    <Upload className="w-12 h-12 text-white/50 mb-4" />
-                    <span className="text-lg text-white/70 mb-2">上传户型图</span>
-                    <span className="text-sm text-white/40">
-                        支持 JPG、PNG 格式
-                    </span>
-                    <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileSelect}
-                        className="hidden"
-                    />
-                </label>
-            )}
-
-            {selectedFile && (
-                <p className="text-sm text-white/60 text-center">
-                    已选择：{selectedFile.name}
-                </p>
             )}
         </div>
     )

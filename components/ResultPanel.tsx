@@ -1,69 +1,92 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Check, Copy } from 'lucide-react'
 
-interface GenerationResult {
-    sellingPoints: string[]
-    contents: {
-        '贝壳版': string
-        '小红书版': string
-        '朋友圈版': string
+interface ResultPanelProps {
+    result: {
+        analysis?: string
+        sellingPoints?: string[]
+        contents: Record<string, string>
     }
 }
 
-interface ResultPanelProps {
-    result: GenerationResult
-}
-
 export default function ResultPanel({ result }: ResultPanelProps) {
-    const [selectedPlatform, setSelectedPlatform] = useState<keyof GenerationResult['contents']>('贝壳版')
+    const platformKeys = Object.keys(result.contents)
+    const [selectedPlatform, setSelectedPlatform] = useState(platformKeys[0] || '')
     const [copied, setCopied] = useState(false)
+
+    useEffect(() => {
+        if (platformKeys.length > 0 && !platformKeys.includes(selectedPlatform)) {
+            setSelectedPlatform(platformKeys[0])
+        }
+    }, [platformKeys, selectedPlatform])
 
     const handleCopy = async () => {
         const content = result.contents[selectedPlatform]
-        await navigator.clipboard.writeText(content)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
+        if (content) {
+            await navigator.clipboard.writeText(content)
+            setCopied(true)
+            setTimeout(() => setCopied(false), 2000)
+        }
+    }
+
+    if (platformKeys.length === 0) {
+        return null
     }
 
     return (
         <div className="space-y-6">
-            {/* 卖点清单 */}
-            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
-                <h3 className="text-xl font-semibold text-white mb-4">🎯 核心卖点</h3>
-                <div className="space-y-2">
-                    {result.sellingPoints.map((point, index) => (
-                        <div key={index} className="text-white/80 flex items-start">
-                            <span className="text-amber-400 mr-2">•</span>
-                            <span>{point.replace(/^[•\-\*]\s*/, '')}</span>
-                        </div>
-                    ))}
+            {/* 核心卖点 */}
+            {result.sellingPoints && result.sellingPoints.length > 0 && (
+                <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+                    <h3 className="text-xl font-semibold text-white mb-4">🎯 核心卖点</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {result.sellingPoints.map((point, index) => (
+                            <div
+                                key={index}
+                                className="flex items-center gap-3 p-3 bg-amber-500/10 rounded-lg border border-amber-500/20"
+                            >
+                                <span className="flex-shrink-0 w-6 h-6 bg-amber-500 text-slate-900 rounded-full flex items-center justify-center text-sm font-bold">
+                                    {index + 1}
+                                </span>
+                                <span className="text-white/90">{point}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-            </div>
+            )}
+
+            {/* 图片分析结果 */}
+            {result.analysis && (
+                <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+                    <h3 className="text-xl font-semibold text-white mb-4">🔍 图片分析</h3>
+                    <div className="text-white/80 whitespace-pre-wrap leading-relaxed">
+                        {result.analysis}
+                    </div>
+                </div>
+            )}
 
             {/* 平台文案切换 */}
             <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
                 <div className="flex justify-between items-center mb-4">
-                    <div className="flex gap-2">
-                        {(Object.keys(result.contents) as Array<keyof typeof result.contents>).map((platform) => (
+                    <div className="flex gap-2 flex-wrap">
+                        {platformKeys.map((platform) => (
                             <button
                                 key={platform}
                                 onClick={() => setSelectedPlatform(platform)}
-                                className={`px-4 py-2 rounded-lg transition-all ${selectedPlatform === platform
-                                    ? 'bg-amber-400 text-slate-900 font-medium'
-                                    : 'bg-white/10 text-white/70 hover:bg-white/20'
+                                className={`px-4 py-2 rounded-lg font-medium transition-all ${selectedPlatform === platform
+                                        ? 'bg-amber-500 text-white'
+                                        : 'bg-white/10 text-white/60 hover:bg-white/20'
                                     }`}
                             >
                                 {platform}
                             </button>
                         ))}
                     </div>
-
-                    {/* 一键复制按钮 */}
                     <button
                         onClick={handleCopy}
-                        className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-all flex items-center gap-2"
+                        className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-all text-sm font-medium"
                     >
                         {copied ? (
                             <>
@@ -79,13 +102,10 @@ export default function ResultPanel({ result }: ResultPanelProps) {
                     </button>
                 </div>
 
-                <div className="bg-white/5 rounded-lg p-4 min-h-[200px]">
-                    <pre className="text-white/80 whitespace-pre-wrap font-sans text-sm leading-relaxed">
-                        {result.contents[selectedPlatform]}
-                    </pre>
+                <div className="bg-black/20 rounded-xl p-6 text-white/90 whitespace-pre-wrap leading-relaxed">
+                    {result.contents[selectedPlatform]}
                 </div>
             </div>
-
         </div>
     )
 }
