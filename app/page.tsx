@@ -116,9 +116,15 @@ export default function Home() {
         updatePoints(data.newPoints)
       }
       setStatus('')
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      setError('生成失败，请稍后重试')
+      // 显示具体的错误信息
+      const errorMsg = err?.message || '生成失败，请稍后重试'
+      setError(errorMsg)
+      // 如果是积分不足，打开充值弹窗
+      if (errorMsg.includes('积分不足')) {
+        setShowRedeemModal(true)
+      }
       setStatus('')
     } finally {
       setIsGenerating(false)
@@ -203,10 +209,16 @@ export default function Home() {
       }
 
       setLayoutStatus('')
-    } catch (err) {
+    } catch (err: any) {
       clearInterval(statusInterval)
       console.error(err)
-      setLayoutError('分析失败，请稍后重试')
+      // 显示具体的错误信息
+      const errorMsg = err?.message || '分析失败，请稍后重试'
+      setLayoutError(errorMsg)
+      // 如果是积分不足，打开充值弹窗
+      if (errorMsg.includes('积分不足')) {
+        setShowRedeemModal(true)
+      }
       setLayoutStatus('')
     } finally {
       setIsAnalyzing(false)
