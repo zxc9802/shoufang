@@ -117,7 +117,7 @@ async function analyzeFloorPlanWithGemini(imageUrl: string, styleCn: string): Pr
             console.log('Gemini API error:', response.status, errorText)
             let errorDetail = `Gemini API错误: ${response.status}`
             if (response.status === 403) {
-                errorDetail = `访问被拒绝(403)：可能是API Key无效或地区限制。详情: ${errorText.substring(0, 100)}`
+                errorDetail = `访问被拒绝(403)：可能是地区限制或API Key无效。详情: ${errorText.substring(0, 100)}`
             }
             return { analysis: '', rooms: [], error: errorDetail }
         }
@@ -136,12 +136,12 @@ async function analyzeFloorPlanWithGemini(imageUrl: string, styleCn: string): Pr
             }
         } catch (e) {
             console.log('JSON解析失败:', content.substring(0, 200))
-            return null
+            return { analysis: '', rooms: [], error: `AI响应格式错误 (JSON解析失败)` }
         }
 
     } catch (e) {
         console.error('Gemini API error:', e)
-        return null
+        return { analysis: '', rooms: [], error: `调用失败: ${(e as Error).message}` }
     }
 }
 
