@@ -13,6 +13,7 @@ export default function Home() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [result, setResult] = useState<any>(null)
   const [error, setError] = useState<string>('')
+  const [status, setStatus] = useState<string>('')
 
   const handleGenerate = async (propertyInfo: PropertyInfo) => {
     if (selectedImages.length === 0) {
@@ -25,7 +26,8 @@ export default function Home() {
     setResult(null)
 
     try {
-      // Upload images to Supabase Storage
+      // Step 1: Upload images to Supabase Storage
+      setStatus('📤 正在上传图片...')
       const imageUrls: string[] = []
       for (const file of selectedImages) {
         const fileName = `${Date.now()}_${file.name}`
@@ -42,31 +44,45 @@ export default function Home() {
         imageUrls.push(publicUrl)
       }
 
-      // Call API to generate content
-      const response = await fetch('/api/generate/listing', {
+      // Step 2: Analyze images (first API call)
+      setStatus('🔍 AI正在分析图片...')
+      const analyzeRes = await fetch('/api/analyze', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          images: imageUrls,
-          propertyInfo
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ images: imageUrls })
       })
 
-      if (!response.ok) {
+      const { imageFeatures } = await analyzeRes.json()
+      console.log('图片分析结果:', imageFeatures)
+
+      // Step 3: Generate content (second API call)
+      setStatus('✍️ AI正在生成文案...')
+      const generateRes = await fetch('/api/generate/listing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ propertyInfo, imageFeatures })
+      })
+
+      if (!generateRes.ok) {
         throw new Error('生成失败')
       }
 
-      const data = await response.json()
+      const data = await generateRes.json()
+      if (data.error) {
+        throw new Error(data.error)
+      }
+
       setResult(data)
+      setStatus('')
     } catch (err) {
       console.error(err)
       setError('生成失败，请稍后重试')
+      setStatus('')
     } finally {
       setIsGenerating(false)
     }
   }
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -121,7 +137,7 @@ export default function Home() {
             {isGenerating && (
               <div className="mt-6 text-center">
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-amber-400"></div>
-                <p className="text-white/60 mt-2">AI 正在生成文案...</p>
+                <p className="text-white/60 mt-2">{status || 'AI 正在生成文案...'}</p>
               </div>
             )}
 

@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// Vercel Edge Runtime - 无超时限制
+// Step 2: 文案生成 API
 export const runtime = 'edge'
 
 export async function POST(req: NextRequest) {
     try {
-        const { images, propertyInfo } = await req.json()
+        const { propertyInfo, imageFeatures } = await req.json()
 
-        console.log('=== API Called ===')
+        console.log('=== 文案生成 API ===')
 
         const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY
 
@@ -15,7 +15,6 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: '缺少API配置' }, { status: 500 })
         }
 
-        // 直接使用 DeepSeek 生成文案（比分两步更快）
         const prompt = `你是专业房产文案专家。根据以下信息生成可直接复制使用的文案：
 
 【房源信息】
@@ -24,7 +23,7 @@ export async function POST(req: NextRequest) {
 小区：${propertyInfo.communityName}
 价格：${propertyInfo.price}万
 亮点：${propertyInfo.highlights.join('、') || '无'}
-图片数量：${images?.length || 0}张
+图片分析：${imageFeatures}
 
 【输出要求】严格按格式输出：
 
@@ -62,12 +61,14 @@ export async function POST(req: NextRequest) {
 
         if (!response.ok) {
             const err = await response.text()
-            console.error('API Error:', err)
+            console.error('DeepSeek Error:', err)
             throw new Error(`API失败: ${response.status}`)
         }
 
         const data = await response.json()
         const fullContent = data.choices?.[0]?.message?.content || ''
+
+        console.log('✅ 文案生成成功')
 
         // 解析内容
         const sellingMatch = fullContent.match(/===卖点===([\s\S]*?)===贝壳版===/)
