@@ -95,7 +95,7 @@ async function analyzeFloorPlanWithGemini(imageUrl: string, styleCn: string): Pr
     const prompt = ROOM_SUGGESTIONS_PROMPT.replace('{STYLE_DESCRIPTION}', styleCn)
 
     try {
-        console.log('调用 12AI Gemini (gemini-2.5-flash-image) 识别户型图...')
+        console.log('调用 12AI Gemini (gemini-3-pro-preview) 识别户型图...')
 
         // 先将图片 URL 转换为 base64
         let imageBase64 = ''
@@ -120,7 +120,7 @@ async function analyzeFloorPlanWithGemini(imageUrl: string, styleCn: string): Pr
         }
 
         // 使用 Google 原生 API 格式
-        const response = await fetch(`https://cdn.12ai.org/v1beta/models/gemini-2.5-flash-image:generateContent?key=${apiKey}`, {
+        const response = await fetch(`https://cdn.12ai.org/v1beta/models/gemini-3-pro-preview:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
