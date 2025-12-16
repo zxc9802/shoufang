@@ -60,8 +60,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl p-8 w-full max-w-md relative">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl p-8 w-full max-w-md relative shadow-2xl">
                 {/* Close Button */}
                 <button
                     onClick={onClose}
@@ -88,7 +88,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                                     type="text"
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 bg-white"
                                     placeholder="输入用户名（可选）"
                                 />
                             </div>
@@ -106,7 +106,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
-                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 bg-white"
                                 placeholder="your@email.com"
                             />
                         </div>
@@ -123,7 +123,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
-                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 bg-white"
                                 placeholder="••••••••"
                             />
                         </div>

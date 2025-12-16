@@ -69,22 +69,28 @@ const ROOM_SUGGESTIONS_PROMPT = `【任务说明】
 - 每个建议要具体可执行，不要空泛
 - 如果图片模糊或无法识别，analysis中说明原因`
 
-// 场景剧本提示词
+// 场景剧本提示词 - 基于实际软装建议生成
 const STORY_SCRIPT_PROMPT = `你是房产文案专家。
 
-根据以下户型和软装信息，为{SCENE_PERSONA}写200-300字生活场景描述。
+根据以下户型分析和**具体软装建议**，为{SCENE_PERSONA}写200-300字生活场景描述。
 
-户型信息：{ANALYSIS}
-软装风格：{STYLE_DESCRIPTION}
-目标人群：{SCENE_PERSONA}
-场景关键词：{SCENE_KEYWORDS}
+【户型分析】
+{ANALYSIS}
 
-要求：
+【具体软装建议】
+{ROOM_SUGGESTIONS}
+
+【软装风格】{STYLE_DESCRIPTION}
+【目标人群】{SCENE_PERSONA}
+【场景关键词】{SCENE_KEYWORDS}
+
+写作要求：
 1. 用第二人称"你"
-2. 包含具体时间、动作、感受
-3. 结合场景关键词描述典型生活片段
-4. 语言温暖有画面感
-5. 不用特殊符号
+2. 必须引用上面软装建议中提到的具体家具、配色、材质
+3. 包含具体时间（早晨/傍晚/周末等）、动作、感受
+4. 结合场景关键词描述真实可信的生活片段
+5. 语言温暖有画面感，不要空泛
+6. 不用特殊符号如**
 
 直接输出文字`
 
@@ -251,8 +257,20 @@ export async function POST(req: NextRequest) {
 
         let storyScript = ''
         if (DEEPSEEK_API_KEY) {
+            // 格式化房间建议为文本
+            const roomSuggestionsText = rooms.map((room: any) => {
+                const lines = [`【${room.name}】`]
+                if (room.suggestions) {
+                    Object.entries(room.suggestions).forEach(([key, value]) => {
+                        lines.push(`${key}：${value}`)
+                    })
+                }
+                return lines.join('\n')
+            }).join('\n\n')
+
             const scriptPrompt = STORY_SCRIPT_PROMPT
                 .replace('{ANALYSIS}', analysis)
+                .replace('{ROOM_SUGGESTIONS}', roomSuggestionsText)
                 .replace('{STYLE_DESCRIPTION}', styleInfo.cn)
                 .replace(/{SCENE_PERSONA}/g, sceneInfo.cn)
                 .replace('{SCENE_KEYWORDS}', sceneInfo.keywords)
@@ -281,6 +299,37 @@ export async function POST(req: NextRequest) {
                 console.error('Script generation failed:', e)
                 // 剧本生成失败不影响主要流程
             }
+        }
+
+        // 保存到历史记录
+        try {
+            await supabase.from('generation_history').insert({
+                user_id: userId,
+                type: 'layout',
+                input_images: [imageUrl],
+                style_name: styleInfo.cn,
+                scene_name: sceneInfo.cn,
+                layout_result: {
+                    analysis,
+                    roomSuggestions: rooms,
+                    sceneNarrative: storyScript
+                }
+            })
+
+            // 清理超过5条的旧记录
+            const { data: allRecords } = await supabase
+                .from('generation_history')
+                .select('id, created_at')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false })
+
+            if (allRecords && allRecords.length > 5) {
+                const idsToDelete = allRecords.slice(5).map(r => r.id)
+                await supabase.from('generation_history').delete().in('id', idsToDelete)
+            }
+        } catch (historyError) {
+            console.error('保存历史记录失败:', historyError)
+            // 不影响主流程
         }
 
         return NextResponse.json({

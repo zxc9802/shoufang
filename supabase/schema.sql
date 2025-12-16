@@ -73,3 +73,31 @@ ON CONFLICT (code) DO NOTHING;
 COMMENT ON TABLE users IS '用户表：存储注册用户信息和积分余额';
 COMMENT ON TABLE redemption_codes IS '卡密表：16位兑换码及对应积分';
 COMMENT ON TABLE point_transactions IS '积分交易记录：所有积分变动的历史';
+
+-- ============================================
+-- 生成记录表 (最近5条)
+-- ============================================
+CREATE TABLE IF NOT EXISTS generation_history (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  type TEXT NOT NULL CHECK (type IN ('listing', 'layout')),
+  
+  -- 通用字段
+  input_images TEXT[],
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  
+  -- listing 类型字段
+  property_info JSONB,
+  listing_result JSONB,
+  
+  -- layout 类型字段
+  style_name TEXT,
+  scene_name TEXT,
+  layout_result JSONB,
+  birdview_image TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_history_user_id ON generation_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_history_created_at ON generation_history(created_at DESC);
+
+COMMENT ON TABLE generation_history IS '生成记录表：存储用户最近5次生成结果';

@@ -118,60 +118,87 @@ export default function StyleSelector({ onStyleChange, onSceneChange }: StyleSel
     }
 
     return (
-        <div className="space-y-6">
-            {/* 生活场景选择 */}
+        <div className="space-y-8">
+            {/* 装修风格选择 - Glass Gallery */}
             <div>
-                <h3 className="text-lg font-semibold text-white mb-4">🎭 选择生活场景</h3>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="flex items-center justify-between mb-4 px-1">
+                    <h3 className="text-xl font-bold text-white tracking-wide">🎨 选择软装风格</h3>
+                    <span className="text-xs text-white/40 uppercase tracking-widest">Swipe to Explore</span>
+                </div>
+
+                <div className="relative group/gallery">
+                    {/* Fade Edges for Scroll Hint */}
+                    <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-slate-900 to-transparent z-10 pointer-events-none" />
+                    <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-slate-900 to-transparent z-10 pointer-events-none" />
+
+                    <div className="flex overflow-x-auto gap-4 pb-6 px-1 snap-x snap-mandatory scrollbar-hide">
+                        {STYLES.map((style) => {
+                            const isSelected = selectedStyle === style.id
+                            return (
+                                <button
+                                    key={style.id}
+                                    onClick={() => handleStyleSelect(style.id)}
+                                    className={`relative flex-none w-48 snap-center group transition-all duration-300 ${isSelected ? 'scale-105 z-10' : 'hover:scale-105 opacity-70 hover:opacity-100'
+                                        }`}
+                                >
+                                    <div className={`
+                                        h-64 w-full rounded-2xl p-5 flex flex-col justify-end text-left relative overflow-hidden backdrop-blur-xl transition-all duration-500
+                                        ${isSelected
+                                            ? `bg-gradient-to-b ${style.color} bg-opacity-20 border-2 border-white/40 shadow-2xl shadow-${style.color.split('-')[1]}-500/30`
+                                            : 'bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10'
+                                        }
+                                    `}>
+                                        {/* Ambient Background Gradient for Card */}
+                                        <div className={`absolute inset-0 bg-gradient-to-tr ${style.color} opacity-20`} />
+
+                                        {/* Selection Indicator */}
+                                        {isSelected && (
+                                            <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-white text-black flex items-center justify-center shadow-lg animate-bounce">
+                                                <span className="text-xs font-bold">✓</span>
+                                            </div>
+                                        )}
+
+                                        <div className="relative z-10">
+                                            <div className="text-xs font-medium text-white/60 mb-1 tracking-widest uppercase">{style.nameEn}</div>
+                                            <h4 className="text-2xl font-bold text-white mb-2">{style.name}</h4>
+                                            <div className="h-px w-8 bg-white/30 mb-3" />
+                                            <p className="text-white/70 text-xs leading-relaxed line-clamp-2">
+                                                {style.keywords.split('、').join(' · ')}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </button>
+                            )
+                        })}
+                    </div>
+                </div>
+            </div>
+
+            {/* 生活场景选择 - Neon Pills */}
+            <div>
+                <h3 className="text-lg font-bold text-white mb-4 px-1">🎭 选择生活场景</h3>
+                <div className="flex flex-wrap gap-3">
                     {SCENES.map((scene) => {
                         const isSelected = selectedScene === scene.id
                         return (
                             <button
                                 key={scene.id}
                                 onClick={() => handleSceneSelect(scene.id)}
-                                className={`relative p-4 rounded-xl border-2 transition-all text-center ${isSelected
-                                        ? 'bg-purple-500/20 border-purple-500/50 ring-2 ring-purple-400/30'
-                                        : 'bg-white/5 border-white/10 hover:border-white/30'
-                                    }`}
+                                className={`
+                                    relative px-5 py-3 rounded-full border transition-all duration-300 flex items-center gap-3 group
+                                    ${isSelected
+                                        ? 'bg-indigo-600/20 border-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.4)]'
+                                        : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/30'
+                                    }
+                                `}
                             >
-                                <div className="text-3xl mb-2">{scene.icon}</div>
-                                <h4 className="text-white font-semibold text-sm">{scene.name}</h4>
-                                <p className="text-white/50 text-xs mt-2 leading-relaxed">{scene.keywords}</p>
-                                {isSelected && (
-                                    <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center">
-                                        <span className="text-white text-xs">✓</span>
-                                    </div>
-                                )}
-                            </button>
-                        )
-                    })}
-                </div>
-            </div>
-
-            {/* 装修风格选择 */}
-            <div>
-                <h3 className="text-lg font-semibold text-white mb-4">🎨 选择软装风格</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {STYLES.map((style) => {
-                        const isSelected = selectedStyle === style.id
-                        return (
-                            <button
-                                key={style.id}
-                                onClick={() => handleStyleSelect(style.id)}
-                                className={`relative p-4 rounded-xl border-2 transition-all text-left ${isSelected
-                                        ? `${style.bgColor} ${style.borderColor} ring-2 ring-white/20`
-                                        : 'bg-white/5 border-white/10 hover:border-white/30'
-                                    }`}
-                            >
-                                {isSelected && (
-                                    <div className={`absolute top-2 right-2 w-5 h-5 rounded-full bg-gradient-to-r ${style.color} flex items-center justify-center`}>
-                                        <span className="text-white text-xs">✓</span>
-                                    </div>
-                                )}
-                                <div className={`w-8 h-8 rounded-lg bg-gradient-to-r ${style.color} mb-2`} />
-                                <h4 className="text-white font-semibold text-sm">{style.name}</h4>
-                                <p className="text-white/40 text-xs mt-1">{style.nameEn}</p>
-                                <p className="text-white/50 text-xs mt-2 leading-relaxed">{style.keywords}</p>
+                                <span className="text-xl group-hover:scale-110 transition-transform">{scene.icon}</span>
+                                <div className="text-left">
+                                    <h4 className={`text-sm font-semibold transition-colors ${isSelected ? 'text-white' : 'text-slate-300'}`}>
+                                        {scene.name}
+                                    </h4>
+                                    {isSelected && <p className="text-[10px] text-indigo-200/60 hidden sm:block -mb-1">已选择</p>}
+                                </div>
                             </button>
                         )
                     })}

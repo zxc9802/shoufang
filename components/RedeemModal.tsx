@@ -56,8 +56,8 @@ export default function RedeemModal({ isOpen, onClose }: RedeemModalProps) {
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl p-8 w-full max-w-md relative">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl p-8 w-full max-w-md relative shadow-2xl">
                 {/* Close Button */}
                 <button
                     onClick={onClose}
@@ -110,7 +110,7 @@ export default function RedeemModal({ isOpen, onClose }: RedeemModalProps) {
                                 onChange={(e) => setCode(e.target.value.toUpperCase())}
                                 maxLength={16}
                                 required
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-center text-lg font-mono tracking-wider"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-center text-lg font-mono tracking-wider text-gray-900 bg-white"
                                 placeholder="输入16位兑换码"
                             />
                             <p className="mt-2 text-xs text-gray-500">

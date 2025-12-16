@@ -1,59 +1,64 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-export const runtime = 'edge'
+const getSupabase = () => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key) {
+        throw new Error('Missing Supabase credentials');
+    }
+    return createClient(url, key);
+};
 
-// 懒加载 Supabase 客户端，避免构建时因缺少环境变量报错
-const getSupabase = () => createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
-export async function POST(req: NextRequest) {
-    const supabase = getSupabase()
+export async function POST(request: NextRequest) {
     try {
-        const { userId, code } = await req.json()
+        const { userId, code } = await request.json();
 
         if (!userId || !code) {
-            return NextResponse.json({ error: '参数缺失' }, { status: 400 })
+            return NextResponse.json({ error: '请填写兑换码' }, { status: 400 });
         }
 
-        // 查找卡密
+        const supabase = getSupabase();
+
+        // 1. 查找卡密
         const { data: redemptionCode, error: codeError } = await supabase
             .from('redemption_codes')
             .select('*')
             .eq('code', code.toUpperCase())
-            .single()
+            .single();
 
         if (codeError || !redemptionCode) {
-            return NextResponse.json({ error: '卡密不存在' }, { status: 404 })
+            return NextResponse.json({ error: '无效的兑换码' }, { status: 400 });
         }
 
-        // 检查是否已使用
         if (redemptionCode.is_used) {
-            return NextResponse.json({ error: '该卡密已被使用' }, { status: 409 })
+            return NextResponse.json({ error: '该兑换码已被使用' }, { status: 400 });
         }
 
-        // 获取用户当前积分
+        // 2. 获取用户当前积分
         const { data: user, error: userError } = await supabase
             .from('users')
             .select('points')
             .eq('id', userId)
-            .single()
+            .single();
 
         if (userError || !user) {
-            return NextResponse.json({ error: '用户不存在' }, { status: 404 })
+            return NextResponse.json({ error: '用户不存在' }, { status: 404 });
         }
 
-        const newPoints = user.points + redemptionCode.points
+        const newBalance = user.points + redemptionCode.points;
 
-        // 更新用户积分
-        await supabase
+        // 3. 更新用户积分
+        const { error: updateError } = await supabase
             .from('users')
-            .update({ points: newPoints })
-            .eq('id', userId)
+            .update({ points: newBalance })
+            .eq('id', userId);
 
-        // 标记卡密为已使用
+        if (updateError) {
+            return NextResponse.json({ error: '积分更新失败' }, { status: 500 });
+        }
+
+        // 4. 标记卡密已使用
         await supabase
             .from('redemption_codes')
             .update({
@@ -61,29 +66,25 @@ export async function POST(req: NextRequest) {
                 used_by: userId,
                 used_at: new Date().toISOString()
             })
-            .eq('id', redemptionCode.id)
+            .eq('id', redemptionCode.id);
 
-        // 记录积分交易
-        await supabase
-            .from('point_transactions')
-            .insert({
-                user_id: userId,
-                amount: redemptionCode.points,
-                type: 'redeem',
-                description: `兑换卡密: ${code}`,
-                balance_after: newPoints
-            })
+        // 5. 记录积分交易
+        await supabase.from('point_transactions').insert({
+            user_id: userId,
+            amount: redemptionCode.points,
+            type: 'redeem',
+            description: `兑换卡密: ${code.substring(0, 4)}****`,
+            balance_after: newBalance
+        });
 
         return NextResponse.json({
             success: true,
             points: redemptionCode.points,
-            newBalance: newPoints
-        })
+            newBalance
+        });
 
-    } catch (error) {
-        console.error('Redeem error:', error)
-        return NextResponse.json({
-            error: '兑换失败：' + (error as Error).message
-        }, { status: 500 })
+    } catch (error: unknown) {
+        console.error('Redeem error:', error);
+        return NextResponse.json({ error: '兑换失败，请稍后重试' }, { status: 500 });
     }
 }

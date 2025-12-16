@@ -345,6 +345,40 @@ ${baseInfo}
             contents[platformNameMap[platformId]] = content.trim()
         }
 
+        // 保存到历史记录
+        try {
+            const supabase = getSupabase()
+
+            // 构建 listings 数组用于存储
+            const listings = Object.entries(contents).map(([platform, content]) => ({
+                platform,
+                content
+            }))
+
+            await supabase.from('generation_history').insert({
+                user_id: userId,
+                type: 'listing',
+                input_images: imageUrls,
+                property_info: propertyInfo,
+                listing_result: { sellingPoints, listings }
+            })
+
+            // 清理超过5条的旧记录
+            const { data: allRecords } = await supabase
+                .from('generation_history')
+                .select('id, created_at')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false })
+
+            if (allRecords && allRecords.length > 5) {
+                const idsToDelete = allRecords.slice(5).map(r => r.id)
+                await supabase.from('generation_history').delete().in('id', idsToDelete)
+            }
+        } catch (historyError) {
+            console.error('保存历史记录失败:', historyError)
+            // 不影响主流程
+        }
+
         return NextResponse.json({
             success: true,
             analysis: analysisResult,

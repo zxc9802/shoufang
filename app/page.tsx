@@ -4,13 +4,15 @@ import { useState } from 'react'
 import ImageUploader from '@/components/ImageUploader'
 import PropertyForm, { PropertyInfo } from '@/components/PropertyForm'
 import ResultPanel from '@/components/ResultPanel'
-import PhotoTips from '@/components/PhotoTips'
 import LayoutUploader from '@/components/LayoutUploader'
 import StyleSelector from '@/components/StyleSelector'
 import LayoutResult from '@/components/LayoutResult'
 import AuthModal from '@/components/AuthModal'
-import UserInfo from '@/components/UserInfo'
 import RedeemModal from '@/components/RedeemModal'
+import HistoryPanel, { HistoryRecord } from '@/components/HistoryPanel'
+import HistoryPreview from '@/components/HistoryPreview'
+import Navbar from '@/components/Navbar'
+import DashboardHero from '@/components/DashboardHero'
 import { useUserStore } from '@/store/userStore'
 import { supabase } from '@/lib/supabase'
 
@@ -39,6 +41,8 @@ export default function Home() {
   // Auth state
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showRedeemModal, setShowRedeemModal] = useState(false)
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false)
+  const [selectedHistoryRecord, setSelectedHistoryRecord] = useState<HistoryRecord | null>(null)
   const { user, updatePoints } = useUserStore()
 
   // Photo-to-Listing handler
@@ -264,161 +268,198 @@ export default function Home() {
     setLayoutPreview(preview)
   }
 
+  // --- Render ---
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Header */}
-      <header className="border-b border-white/10 backdrop-blur-lg bg-white/5">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-amber-200 to-yellow-400 bg-clip-text text-transparent">
-            🏠 RealState AI
-          </h1>
-          <div className="flex items-center gap-3">
-            {activeTab === 'photo' && <PhotoTips />}
-            {user ? (
-              <UserInfo onRedeemClick={() => setShowRedeemModal(true)} />
-            ) : (
-              <button
-                onClick={() => setShowAuthModal(true)}
-                className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full font-semibold hover:from-purple-700 hover:to-pink-700 transition-all"
-              >
-                登录 / 注册
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-deep-space text-white selection:bg-indigo-500/30">
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Tab Buttons */}
-          <div className="flex gap-4 mb-8 justify-center">
-            <button
-              onClick={() => setActiveTab('photo')}
-              className={`px-6 py-3 rounded-xl font-semibold transition-all flex items-center gap-2
-                ${activeTab === 'photo'
-                  ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-900'
-                  : 'bg-white/10 text-white/70 hover:bg-white/20'
-                }`}
-            >
-              📸 图片生文案
-            </button>
-            <button
-              onClick={() => setActiveTab('layout')}
-              className={`px-6 py-3 rounded-xl font-semibold transition-all flex items-center gap-2
-                ${activeTab === 'layout'
-                  ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-900'
-                  : 'bg-white/10 text-white/70 hover:bg-white/20'
-                }`}
-            >
-              🏗️ 户型分析
-            </button>
-          </div>
+      {/* Background Ambience */}
+      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-900/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-900/10 rounded-full blur-[120px]" />
+      </div>
 
-          {/* Tab Content: Photo-to-Listing */}
-          {activeTab === 'photo' && (
-            <>
-              <div className="text-center mb-8">
-                <h2 className="text-3xl font-bold text-white mb-2">📸 图片生爆款文案</h2>
-                <p className="text-white/60">上传房源照片，AI 自动生成多平台文案</p>
-              </div>
+      <Navbar
+        user={user}
+        onAuthClick={() => setShowAuthModal(true)}
+        onRedeemClick={() => setShowRedeemModal(true)}
+        onHistoryClick={() => setShowHistoryPanel(true)}
+        activeTab={activeTab}
+      />
 
-              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 mb-6">
-                <div className="mb-8">
-                  <h3 className="text-xl font-semibold text-white mb-4">上传房源照片 (1-9张)</h3>
+      <main className="relative z-10 pt-32 pb-20 px-4 md:px-8 max-w-7xl mx-auto">
+
+        {/* Hero & Tab Switcher */}
+        <DashboardHero
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
+
+        {/* History Preview Modal */}
+        {selectedHistoryRecord && (
+          <HistoryPreview
+            record={selectedHistoryRecord}
+            onClose={() => setSelectedHistoryRecord(null)}
+          />
+        )}
+
+        {/* --- Content Area: Photo to Listing --- */}
+        {activeTab === 'photo' && (
+          <div className="animate-fade-in-up space-y-8">
+            {/* Split Layout: Input Area */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+              {/* Left Column: Image Uploader (4 cols) */}
+              <div className="lg:col-span-5 flex flex-col gap-6">
+                <div className="glass-panel p-6 rounded-3xl h-full border-t border-t-white/10">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-xl">🖼️</div>
+                    <div>
+                      <h2 className="text-lg font-bold">房源视觉素材</h2>
+                      <p className="text-white/40 text-xs">支持上传 JPG/PNG 格式，建议上传1-9张</p>
+                    </div>
+                  </div>
                   <ImageUploader onImagesChange={setSelectedImages} />
                 </div>
+              </div>
 
-                <div>
-                  <h3 className="text-xl font-semibold text-white mb-4">填写房源信息</h3>
+              {/* Right Column: Form (8 cols) */}
+              <div className="lg:col-span-7">
+                <div className="glass-panel p-6 md:p-8 rounded-3xl border-t border-t-white/10 h-full relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-[80px] pointer-events-none" />
+
+                  <div className="flex items-center gap-3 mb-6 relative z-10">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-xl">📝</div>
+                    <div>
+                      <h2 className="text-lg font-bold">房源核心参数</h2>
+                      <p className="text-white/40 text-xs">AI 将根据这些信息生成精准营销文案</p>
+                    </div>
+                  </div>
+
                   <PropertyForm onSubmit={handleGenerate} />
+
+                  {/* Status / Error Overlays */}
+                  {isGenerating && (
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center z-20 rounded-3xl animate-in fade-in duration-300">
+                      <div className="relative">
+                        <div className="w-16 h-16 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+                        <div className="absolute inset-0 flex items-center justify-center text-xl">✨</div>
+                      </div>
+                      <p className="mt-4 text-white font-medium animate-pulse">{status || 'AI 正在生成文案...'}</p>
+                    </div>
+                  )}
+
+                  {error && (
+                    <div className="mt-6 p-4 bg-red-500/20 border border-red-500/50 rounded-xl text-red-100 flex items-center gap-3 animate-shake">
+                      <span>⚠️</span> {error}
+                    </div>
+                  )}
                 </div>
+              </div>
+            </div>
 
-                {isGenerating && (
-                  <div className="mt-6 text-center">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-amber-400"></div>
-                    <p className="text-white/60 mt-2">{status || 'AI 正在生成文案...'}</p>
-                  </div>
-                )}
+            {/* Results Section */}
+            {result && (
+              <div id="result-section" className="scroll-mt-32">
+                <ResultPanel result={result} />
+              </div>
+            )}
+          </div>
+        )}
 
-                {error && (
-                  <div className="mt-6 bg-red-500/20 border border-red-500 rounded-lg p-4 text-red-200">
-                    {error}
+        {/* --- Content Area: Layout Analysis --- */}
+        {activeTab === 'layout' && (
+          <div className="animate-fade-in-up space-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+
+              {/* Left: Uploader */}
+              <div className="glass-panel p-6 rounded-3xl border-t border-t-white/10">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center text-xl">📐</div>
+                  <div>
+                    <h2 className="text-lg font-bold">上传原始户型图</h2>
+                    <p className="text-white/40 text-xs">支持黑白/彩色平面图，清晰度越高效果越好</p>
                   </div>
-                )}
+                </div>
+                <LayoutUploader onImageChange={handleLayoutImageChange} />
               </div>
 
-              {result && <ResultPanel result={result} />}
-            </>
-          )}
-
-          {/* Tab Content: Layout Analysis */}
-          {activeTab === 'layout' && (
-            <>
-              <div className="text-center mb-8">
-                <h2 className="text-3xl font-bold text-white mb-2">🏗️ 户型图分析与软装叙事</h2>
-                <p className="text-white/60">上传户型图，AI 分析空间潜力并生成效果图</p>
-              </div>
-
-              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 mb-6">
-                {/* Layout Uploader */}
-                <div className="mb-8">
-                  <h3 className="text-xl font-semibold text-white mb-4">上传户型图</h3>
-                  <LayoutUploader onImageChange={handleLayoutImageChange} />
+              {/* Right: Style & Config */}
+              <div className="glass-panel p-6 rounded-3xl border-t border-t-white/10 flex flex-col gap-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-pink-500/20 flex items-center justify-center text-xl">🎨</div>
+                  <div>
+                    <h2 className="text-lg font-bold">定制设计风格</h2>
+                    <p className="text-white/40 text-xs">选择理想的软装风格与生活场景</p>
+                  </div>
                 </div>
 
-                {/* Style Selector */}
-                <div className="mb-8">
-                  <StyleSelector
-                    onStyleChange={setSelectedStyle}
-                    onSceneChange={setSelectedScene}
-                  />
+                <StyleSelector
+                  onStyleChange={setSelectedStyle}
+                  onSceneChange={setSelectedScene}
+                />
+
+                <div className="mt-auto">
+                  <button
+                    onClick={handleLayoutAnalyze}
+                    disabled={!layoutImage || isAnalyzing}
+                    className={`w-full py-4 rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2 group relative overflow-hidden
+                        ${layoutImage && !isAnalyzing
+                        ? 'bg-white text-black hover:scale-[1.02] shadow-[0_0_30px_rgba(255,255,255,0.2)]'
+                        : isAnalyzing
+                          ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-[0_0_40px_rgba(129,140,248,0.5)]'
+                          : 'bg-white/5 text-white/20 cursor-not-allowed'
+                      }`}
+                  >
+                    {isAnalyzing ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                        <span className="text-white font-semibold animate-pulse">{layoutStatus || 'AI 正在思考...'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="relative z-10">🚀 开始空间分析</span>
+                        {layoutImage && <span className="relative z-10 text-xs font-normal opacity-60 ml-1">(消耗15积分)</span>}
+                        {layoutImage && <div className="absolute inset-0 bg-gradient-to-r from-purple-200 to-indigo-200 opacity-0 group-hover:opacity-100 transition-opacity -z-0" />}
+                      </>
+                    )}
+                  </button>
+                  {layoutError && (
+                    <p className="text-red-400 text-sm text-center mt-3 animate-shake">{layoutError}</p>
+                  )}
                 </div>
-
-                {/* Submit Button */}
-                <button
-                  onClick={handleLayoutAnalyze}
-                  disabled={!layoutImage || isAnalyzing}
-                  className={`w-full py-4 rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-2
-                    ${layoutImage && !isAnalyzing
-                      ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-900 hover:from-amber-500 hover:to-yellow-600'
-                      : 'bg-white/20 text-white/40 cursor-not-allowed'
-                    }`}
-                >
-                  ✨ 开始分析 (消耗15积分)
-                </button>
-
-                {isAnalyzing && (
-                  <div className="mt-6 text-center">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-amber-400"></div>
-                    <p className="text-white/60 mt-2">{layoutStatus || 'AI 正在分析户型...'}</p>
-                  </div>
-                )}
-
-                {layoutError && (
-                  <div className="mt-6 bg-red-500/20 border border-red-500 rounded-lg p-4 text-red-200">
-                    {layoutError}
-                  </div>
-                )}
               </div>
+            </div>
 
-              {layoutResult && (
+            {/* Results Section */}
+            {layoutResult && (
+              <div id="layout-result-section" className="scroll-mt-32">
                 <LayoutResult result={layoutResult} />
-              )}
-            </>
-          )}
-        </div>
+              </div>
+            )}
+          </div>
+        )}
+
       </main>
 
-      {/* Auth Modal */}
+      {/* Modals */}
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
       />
 
-      {/* Redeem Modal */}
       <RedeemModal
         isOpen={showRedeemModal}
         onClose={() => setShowRedeemModal(false)}
+      />
+
+      <HistoryPanel
+        isOpen={showHistoryPanel}
+        onClose={() => {
+          setShowHistoryPanel(false)
+          setSelectedHistoryRecord(null)
+        }}
+        onSelectRecord={setSelectedHistoryRecord}
       />
     </div>
   )

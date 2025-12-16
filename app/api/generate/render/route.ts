@@ -128,11 +128,30 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: '效果图生成失败' }, { status: 500 })
         }
 
-        // 转存图片的逻辑我们先简化，直接返回 URL，让前端去处理或者如果有余力再转存
-        // 为了稳健，我们应该转存到 Supabase，但为了避免 OOM，我们先直接返回 URL
-        // 如果是 Vercel/Zeabur，服务端下载再上传可能也会超时。
-        // 最好的做法是前端拿到 URL 只有展示，或者前端去转存。
-        // 这里我们直接返回 URL。
+        // 更新最近的历史记录，添加鸟瞰图
+        try {
+            const supabase = getSupabase()
+            // 获取该用户最近的 layout 类型记录
+            const { data: latestRecord } = await supabase
+                .from('generation_history')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('type', 'layout')
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single()
+
+            if (latestRecord) {
+                await supabase
+                    .from('generation_history')
+                    .update({ birdview_image: birdviewImage })
+                    .eq('id', latestRecord.id)
+                console.log('✅ 已更新历史记录的鸟瞰图')
+            }
+        } catch (historyError) {
+            console.error('更新历史记录鸟瞰图失败:', historyError)
+            // 不影响主流程
+        }
 
         return NextResponse.json({
             imageUrl: birdviewImage

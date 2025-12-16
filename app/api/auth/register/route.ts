@@ -1,76 +1,84 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import crypto from 'crypto'
 
-export const runtime = 'edge'
+// 懒加载 Supabase 客户端
+const getSupabase = () => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!url || !key) {
+        throw new Error('Missing Supabase credentials')
+    }
+    return createClient(url, key)
+}
 
-// 懒加载 Supabase 客户端，避免构建时因缺少环境变量报错
-const getSupabase = () => createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+// 简单的密码哈希函数
+function hashPassword(password: string): string {
+    return crypto.createHash('sha256').update(password).digest('hex')
+}
 
-export async function POST(req: NextRequest) {
-    const supabase = getSupabase()
+export async function POST(request: NextRequest) {
     try {
-        const { email, password, username } = await req.json()
+        const { email, password, username } = await request.json()
 
         if (!email || !password) {
-            return NextResponse.json({ error: '邮箱和密码不能为空' }, { status: 400 })
+            return NextResponse.json({ error: '请填写邮箱和密码' }, { status: 400 })
         }
 
-        // 检查邮箱是否已存在
+        if (password.length < 6) {
+            return NextResponse.json({ error: '密码至少6位' }, { status: 400 })
+        }
+
+        const supabase = getSupabase()
+
+        // 检查邮箱是否已注册
         const { data: existingUser } = await supabase
             .from('users')
             .select('id')
-            .eq('email', email)
+            .eq('email', email.toLowerCase())
             .single()
 
         if (existingUser) {
             return NextResponse.json({ error: '该邮箱已被注册' }, { status: 409 })
         }
 
-        // 简单的密码哈希（生产环境应使用 bcrypt）
-        const passwordHash = btoa(password)
-
-        // 创建用户（自动获得30积分）
-        const { data: user, error: insertError } = await supabase
+        // 创建用户
+        const hashedPassword = hashPassword(password)
+        const { data: newUser, error } = await supabase
             .from('users')
             .insert({
-                email,
-                password_hash: passwordHash,
-                username: username || email.split('@')[0],
-                points: 30
+                email: email.toLowerCase(),
+                password_hash: hashedPassword,
+                username: username || null,
+                points: 30 // 注册赠送30积分
             })
             .select()
             .single()
 
-        if (insertError) throw insertError
+        if (error) {
+            console.error('Register error:', error)
+            return NextResponse.json({ error: '注册失败，请稍后重试' }, { status: 500 })
+        }
 
-        // 记录注册赠送积分
-        await supabase
-            .from('point_transactions')
-            .insert({
-                user_id: user.id,
-                amount: 30,
-                type: 'register',
-                description: '新用户注册奖励',
-                balance_after: 30
-            })
+        // 记录积分交易
+        await supabase.from('point_transactions').insert({
+            user_id: newUser.id,
+            amount: 30,
+            type: 'register',
+            description: '注册赠送',
+            balance_after: 30
+        })
+
+        // 返回用户信息（不包含密码）
+        const { password_hash, ...safeUser } = newUser
 
         return NextResponse.json({
             success: true,
-            user: {
-                id: user.id,
-                email: user.email,
-                username: user.username,
-                points: user.points
-            }
+            user: safeUser
         })
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('Register error:', error)
-        return NextResponse.json({
-            error: '注册失败：' + (error as Error).message
-        }, { status: 500 })
+        return NextResponse.json({ error: '注册失败，请稍后重试' }, { status: 500 })
     }
 }
