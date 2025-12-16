@@ -95,25 +95,41 @@ async function analyzeFloorPlanWithGemini(imageUrl: string, styleCn: string): Pr
     const prompt = ROOM_SUGGESTIONS_PROMPT.replace('{STYLE_DESCRIPTION}', styleCn)
 
     try {
-        console.log('调用 12AI Gemini 识别户型图...')
+        console.log('调用 12AI Gemini (gemini-2.5-flash-image) 识别户型图...')
 
-        // 使用 OpenAI 兼容格式调用 12AI
-        const response = await fetch('https://cdn.12ai.org/v1/chat/completions', {
+        // 先将图片 URL 转换为 base64
+        let imageBase64 = ''
+        let mimeType = 'image/jpeg'
+
+        try {
+            console.log('下载图片并转为base64...')
+            const imageResponse = await fetch(imageUrl)
+            if (!imageResponse.ok) {
+                throw new Error(`图片下载失败: ${imageResponse.status}`)
+            }
+            const arrayBuffer = await imageResponse.arrayBuffer()
+            imageBase64 = Buffer.from(arrayBuffer).toString('base64')
+
+            const contentType = imageResponse.headers.get('content-type')
+            if (contentType && contentType.includes('image/')) {
+                mimeType = contentType.split(';')[0]
+            }
+        } catch (imgError) {
+            console.error('图片下载失败:', imgError)
+            return { analysis: '', rooms: [], error: `图片加载失败: ${(imgError as Error).message}` }
+        }
+
+        // 使用 Google 原生 API 格式
+        const response = await fetch(`https://cdn.12ai.org/v1beta/models/gemini-2.5-flash-image:generateContent?key=${apiKey}`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                model: 'gemini-2.0-flash',
-                messages: [{
-                    role: 'user',
-                    content: [
-                        { type: 'image_url', image_url: { url: imageUrl } },
-                        { type: 'text', text: prompt }
+                contents: [{
+                    parts: [
+                        { text: prompt },
+                        { inline_data: { mime_type: mimeType, data: imageBase64 } }
                     ]
-                }],
-                max_tokens: 2000
+                }]
             })
         })
 
@@ -124,17 +140,22 @@ async function analyzeFloorPlanWithGemini(imageUrl: string, styleCn: string): Pr
         }
 
         const data = await response.json()
-        let content = data.choices?.[0]?.message?.content || ''
 
-        // 清理 markdown 代码块
+        // 从 Google 原生格式中提取文本
+        let content = ''
+        const candidates = data.candidates || []
+        if (candidates.length > 0) {
+            const parts = candidates[0].content?.parts || []
+            for (const part of parts) {
+                if (part.text) content += part.text
+            }
+        }
+
         content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
 
         try {
             const parsed = JSON.parse(content)
-            return {
-                analysis: parsed.analysis || '',
-                rooms: parsed.rooms || []
-            }
+            return { analysis: parsed.analysis || '', rooms: parsed.rooms || [] }
         } catch (e) {
             console.log('JSON解析失败:', content.substring(0, 300))
             return { analysis: '', rooms: [], error: `AI响应格式错误 (JSON解析失败)` }
