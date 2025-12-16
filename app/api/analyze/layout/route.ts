@@ -88,117 +88,62 @@ const STORY_SCRIPT_PROMPT = `你是房产文案专家。
 
 直接输出文字`
 
-// 使用 GLM-4.6V (智谱清言) 识别户型图并生成软装建议 (更快)
-// 如果 GLM_API_KEY 未配置，则回退到 Sydney AI (Gemini)
+// 使用 12AI Gemini 识别户型图并生成软装建议
 async function analyzeFloorPlanWithGemini(imageUrl: string, styleCn: string): Promise<{ analysis: string, rooms: any[], error?: string } | null> {
-    const glmKey = process.env.GLM_API_KEY
-    const sydneyKey = process.env.SYDNEY_AI_API_KEY
+    const apiKey = process.env.AI_12_API_KEY || 'sk-E7zBDATYFYZCT1BviXfmTcdgrAUjXR7KV8FJZV8ojnpLoLuU'
 
     const prompt = ROOM_SUGGESTIONS_PROMPT.replace('{STYLE_DESCRIPTION}', styleCn)
 
-    // 优先使用 GLM-4.6V (更快)
-    if (glmKey) {
-        try {
-            console.log('调用 GLM-4.6V 识别户型图...')
+    try {
+        console.log('调用 12AI Gemini 识别户型图...')
 
-            const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${glmKey}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: 'glm-4v-flash',
-                    messages: [{
-                        role: 'user',
-                        content: [
-                            { type: 'image_url', image_url: { url: imageUrl } },
-                            { type: 'text', text: prompt }
-                        ]
-                    }]
-                })
+        // 使用 OpenAI 兼容格式调用 12AI
+        const response = await fetch('https://cdn.12ai.org/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'gemini-2.0-flash',
+                messages: [{
+                    role: 'user',
+                    content: [
+                        { type: 'image_url', image_url: { url: imageUrl } },
+                        { type: 'text', text: prompt }
+                    ]
+                }],
+                max_tokens: 2000
             })
+        })
 
-            if (!response.ok) {
-                const errorText = await response.text()
-                console.log('GLM API error:', response.status, errorText)
-                return { analysis: '', rooms: [], error: `GLM API错误: ${response.status} - ${errorText.substring(0, 100)}` }
-            }
-
-            const data = await response.json()
-            let content = data.choices?.[0]?.message?.content || ''
-
-            // 清理 markdown 代码块
-            content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-
-            try {
-                const parsed = JSON.parse(content)
-                return {
-                    analysis: parsed.analysis || '',
-                    rooms: parsed.rooms || []
-                }
-            } catch (e) {
-                console.log('JSON解析失败:', content.substring(0, 300))
-                return { analysis: '', rooms: [], error: `AI响应格式错误 (JSON解析失败)` }
-            }
-
-        } catch (e) {
-            console.error('GLM API error:', e)
-            return { analysis: '', rooms: [], error: `调用失败: ${(e as Error).message}` }
+        if (!response.ok) {
+            const errorText = await response.text()
+            console.log('12AI API error:', response.status, errorText)
+            return { analysis: '', rooms: [], error: `12AI API错误: ${response.status} - ${errorText.substring(0, 100)}` }
         }
-    }
 
-    // 回退到 Sydney AI (Gemini)
-    if (sydneyKey) {
-        const baseUrl = process.env.SYDNEY_AI_BASE_URL || 'https://api.sydney-ai.com/v1'
+        const data = await response.json()
+        let content = data.choices?.[0]?.message?.content || ''
+
+        // 清理 markdown 代码块
+        content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
 
         try {
-            console.log('调用 Sydney AI (Gemini) 识别户型图...')
-
-            const response = await fetch(`${baseUrl}/chat/completions`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${sydneyKey}`,
-                    'Content-Type': 'application/json',
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                },
-                body: JSON.stringify({
-                    model: 'gemini-3-pro-image-preview-2k',
-                    stream: false,
-                    messages: [{
-                        role: 'user',
-                        content: [
-                            { type: 'text', text: prompt },
-                            { type: 'image_url', image_url: { url: imageUrl } }
-                        ]
-                    }]
-                })
-            })
-
-            if (!response.ok) {
-                const errorText = await response.text()
-                console.log('Gemini API error:', response.status, errorText)
-                return { analysis: '', rooms: [], error: `Gemini API错误: ${response.status}` }
+            const parsed = JSON.parse(content)
+            return {
+                analysis: parsed.analysis || '',
+                rooms: parsed.rooms || []
             }
-
-            const data = await response.json()
-            let content = data.choices?.[0]?.message?.content || ''
-            content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-
-            try {
-                const parsed = JSON.parse(content)
-                return { analysis: parsed.analysis || '', rooms: parsed.rooms || [] }
-            } catch (e) {
-                return { analysis: '', rooms: [], error: `AI响应格式错误` }
-            }
-
         } catch (e) {
-            console.error('Sydney API error:', e)
-            return { analysis: '', rooms: [], error: `调用失败: ${(e as Error).message}` }
+            console.log('JSON解析失败:', content.substring(0, 300))
+            return { analysis: '', rooms: [], error: `AI响应格式错误 (JSON解析失败)` }
         }
-    }
 
-    return { analysis: '', rooms: [], error: '请配置 OPENAI_API_KEY 或 SYDNEY_AI_API_KEY' }
+    } catch (e) {
+        console.error('12AI API error:', e)
+        return { analysis: '', rooms: [], error: `调用失败: ${(e as Error).message}` }
+    }
 }
 
 // 懒加载 Supabase 客户端
