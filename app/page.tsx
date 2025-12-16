@@ -228,7 +228,7 @@ export default function Home() {
             const renderData = await renderRes.json()
             if (renderData.imageUrl) {
               // 更新 layoutResult，合并图片
-              setLayoutResult(prev => prev ? ({ ...prev, birdviewImage: renderData.imageUrl }) : prev)
+              setLayoutResult((prev: any) => prev ? ({ ...prev, birdviewImage: renderData.imageUrl }) : prev)
             }
           } else {
             console.error('Render failed:', await renderRes.text())
