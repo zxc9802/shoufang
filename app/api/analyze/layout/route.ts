@@ -33,30 +33,41 @@ const SCENE_DESCRIPTIONS: Record<string, { cn: string, keywords: string }> = {
     }
 }
 
-// 软装建议提示词（让 Gemini 直接识别户型图）
-const ROOM_SUGGESTIONS_PROMPT = `你是专业室内设计师。请分析用户上传的户型图，然后为每个房间生成软装建议。
+// 软装建议提示词（严谨版本，适配 GLM-4.6V）
+const ROOM_SUGGESTIONS_PROMPT = `【任务说明】
+你是一位专业的室内设计师，请仔细分析用户上传的户型图图片，识别图中的所有房间，并为每个房间生成软装设计建议。
 
-设计风格：{STYLE_DESCRIPTION}
+【设计风格】
+{STYLE_DESCRIPTION}
 
-请先列出户型图中所有房间，然后为每个房间生成软装建议。
+【分析步骤】
+1. 首先识别图片中的户型结构，包括：客厅、卧室、厨房、卫生间、阳台等
+2. 分析每个房间的面积和采光情况
+3. 根据指定风格，为每个房间生成具体的软装建议
 
-输出JSON格式：
+【输出要求】
+请严格按照以下JSON格式输出，不要添加任何其他文字或解释：
+
 {
-  "analysis": "户型分析（50-100字）",
+  "analysis": "这是一个XX平米的户型，包含X室X厅X卫。整体格局方正/紧凑，采光良好/一般。（50-80字的整体分析）",
   "rooms": [
     {
-      "name": "房间名",
+      "name": "客厅",
       "suggestions": {
-        "布局": "家具摆放（20-30字）",
-        "配色": "颜色搭配（20-30字）",
-        "材质": "推荐材质（10-20字）",
-        "氛围": "灯光设计（10-20字）"
+        "布局": "沙发靠墙摆放，茶几选择圆形款式，电视柜采用悬浮式设计（20-30字）",
+        "配色": "主色调采用米白色，搭配原木色家具，用绿植点缀（20-30字）",
+        "材质": "布艺沙发、实木茶几、棉麻窗帘（10-20字）",
+        "氛围": "主灯选暖光吊灯，辅以落地灯营造温馨感（10-20字）"
       }
     }
   ]
 }
 
-只输出JSON，不要其他内容`
+【注意事项】
+- 只输出JSON，不要有任何前缀或后缀文字
+- rooms数组中必须包含图中识别到的所有房间
+- 每个建议要具体可执行，不要空泛
+- 如果图片模糊或无法识别，analysis中说明原因`
 
 // 场景剧本提示词
 const STORY_SCRIPT_PROMPT = `你是房产文案专家。
@@ -77,72 +88,117 @@ const STORY_SCRIPT_PROMPT = `你是房产文案专家。
 
 直接输出文字`
 
-// 使用 Sydney AI Gemini 3 Pro 识别户型图并生成软装建议
+// 使用 GLM-4.6V (智谱清言) 识别户型图并生成软装建议 (更快)
+// 如果 GLM_API_KEY 未配置，则回退到 Sydney AI (Gemini)
 async function analyzeFloorPlanWithGemini(imageUrl: string, styleCn: string): Promise<{ analysis: string, rooms: any[], error?: string } | null> {
-    const apiKey = process.env.SYDNEY_AI_API_KEY
-    const baseUrl = process.env.SYDNEY_AI_BASE_URL || 'https://api.sydney-ai.com/v1'
-
-    if (!apiKey) {
-        console.log('未配置 SYDNEY_AI_API_KEY')
-        return { analysis: '', rooms: [], error: 'SYDNEY_AI_API_KEY未配置' }
-    }
+    const glmKey = process.env.GLM_API_KEY
+    const sydneyKey = process.env.SYDNEY_AI_API_KEY
 
     const prompt = ROOM_SUGGESTIONS_PROMPT.replace('{STYLE_DESCRIPTION}', styleCn)
 
-    try {
-        console.log('调用 Gemini 3 Pro 识别户型图...')
+    // 优先使用 GLM-4.6V (更快)
+    if (glmKey) {
+        try {
+            console.log('调用 GLM-4.6V 识别户型图...')
 
-        const response = await fetch(`${baseUrl}/chat/completions`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            },
-            body: JSON.stringify({
-                model: 'gemini-3-pro-image-preview-2k',
-                stream: false,
-                messages: [{
-                    role: 'user',
-                    content: [
-                        { type: 'text', text: prompt },
-                        { type: 'image_url', image_url: { url: imageUrl } }
-                    ]
-                }]
+            const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${glmKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'glm-4v-flash',
+                    messages: [{
+                        role: 'user',
+                        content: [
+                            { type: 'image_url', image_url: { url: imageUrl } },
+                            { type: 'text', text: prompt }
+                        ]
+                    }]
+                })
             })
-        })
 
-        if (!response.ok) {
-            const errorText = await response.text()
-            console.log('Gemini API error:', response.status, errorText)
-            let errorDetail = `Gemini API错误: ${response.status}`
-            if (response.status === 403) {
-                errorDetail = `访问被拒绝(403)：可能是地区限制或API Key无效。详情: ${errorText.substring(0, 100)}`
+            if (!response.ok) {
+                const errorText = await response.text()
+                console.log('GLM API error:', response.status, errorText)
+                return { analysis: '', rooms: [], error: `GLM API错误: ${response.status} - ${errorText.substring(0, 100)}` }
             }
-            return { analysis: '', rooms: [], error: errorDetail }
+
+            const data = await response.json()
+            let content = data.choices?.[0]?.message?.content || ''
+
+            // 清理 markdown 代码块
+            content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+
+            try {
+                const parsed = JSON.parse(content)
+                return {
+                    analysis: parsed.analysis || '',
+                    rooms: parsed.rooms || []
+                }
+            } catch (e) {
+                console.log('JSON解析失败:', content.substring(0, 300))
+                return { analysis: '', rooms: [], error: `AI响应格式错误 (JSON解析失败)` }
+            }
+
+        } catch (e) {
+            console.error('GLM API error:', e)
+            return { analysis: '', rooms: [], error: `调用失败: ${(e as Error).message}` }
         }
+    }
 
-        const data = await response.json()
-        let content = data.choices?.[0]?.message?.content || ''
-
-        // 清理 markdown 代码块
-        content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+    // 回退到 Sydney AI (Gemini)
+    if (sydneyKey) {
+        const baseUrl = process.env.SYDNEY_AI_BASE_URL || 'https://api.sydney-ai.com/v1'
 
         try {
-            const parsed = JSON.parse(content)
-            return {
-                analysis: parsed.analysis || '',
-                rooms: parsed.rooms || []
-            }
-        } catch (e) {
-            console.log('JSON解析失败:', content.substring(0, 200))
-            return { analysis: '', rooms: [], error: `AI响应格式错误 (JSON解析失败)` }
-        }
+            console.log('调用 Sydney AI (Gemini) 识别户型图...')
 
-    } catch (e) {
-        console.error('Gemini API error:', e)
-        return { analysis: '', rooms: [], error: `调用失败: ${(e as Error).message}` }
+            const response = await fetch(`${baseUrl}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${sydneyKey}`,
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                },
+                body: JSON.stringify({
+                    model: 'gemini-3-pro-image-preview-2k',
+                    stream: false,
+                    messages: [{
+                        role: 'user',
+                        content: [
+                            { type: 'text', text: prompt },
+                            { type: 'image_url', image_url: { url: imageUrl } }
+                        ]
+                    }]
+                })
+            })
+
+            if (!response.ok) {
+                const errorText = await response.text()
+                console.log('Gemini API error:', response.status, errorText)
+                return { analysis: '', rooms: [], error: `Gemini API错误: ${response.status}` }
+            }
+
+            const data = await response.json()
+            let content = data.choices?.[0]?.message?.content || ''
+            content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+
+            try {
+                const parsed = JSON.parse(content)
+                return { analysis: parsed.analysis || '', rooms: parsed.rooms || [] }
+            } catch (e) {
+                return { analysis: '', rooms: [], error: `AI响应格式错误` }
+            }
+
+        } catch (e) {
+            console.error('Sydney API error:', e)
+            return { analysis: '', rooms: [], error: `调用失败: ${(e as Error).message}` }
+        }
     }
+
+    return { analysis: '', rooms: [], error: '请配置 OPENAI_API_KEY 或 SYDNEY_AI_API_KEY' }
 }
 
 // 懒加载 Supabase 客户端
