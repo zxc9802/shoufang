@@ -311,7 +311,7 @@ ${baseInfo}
 直接输出，用户可一键复制到朋友圈发布。`
         }
 
-        // 只生成用户选择的平台文案
+        // 使用 Gemini 3 Flash Preview 生成平台文案
         const contents: Record<string, string> = {}
         const platformNameMap: Record<string, string> = {
             beike: '贝壳版',
@@ -319,30 +319,72 @@ ${baseInfo}
             moments: '朋友圈版'
         }
 
+        const GEMINI_API_KEY = 'sk-dtjQjKcFOba1wPBfyIPrB2ZDOGGAeVjogphNCDTJIp83botC'
+        const GEMINI_ENDPOINT = 'https://yunwu.ai/v1beta/models/gemini-3-flash-preview:generateContent'
+
         for (const platformId of platforms) {
             const prompt = platformPrompts[platformId as keyof typeof platformPrompts]
             if (!prompt) continue
 
-            const res = await fetch('https://api.deepseek.com/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
-                },
-                body: JSON.stringify({
-                    model: 'deepseek-chat',
-                    messages: [
-                        { role: 'system', content: '你是房产文案专家' },
-                        { role: 'user', content: prompt }
-                    ],
-                    stream: false
+            try {
+                const res = await fetch(`${GEMINI_ENDPOINT}?key=${GEMINI_API_KEY}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        systemInstruction: {
+                            parts: [{ text: '你是房产文案专家' }]
+                        },
+                        contents: [
+                            {
+                                role: 'user',
+                                parts: [{ text: prompt }]
+                            }
+                        ],
+                        generationConfig: {
+                            temperature: 1,
+                            topP: 1,
+                            thinkingConfig: {
+                                includeThoughts: true,
+                                thinkingBudget: 26240
+                            }
+                        }
+                    })
                 })
-            })
 
-            const data = await res.json()
-            let content = data.choices?.[0]?.message?.content || ''
-            content = content.replace(/\*\*/g, '').replace(/\*/g, '')
-            contents[platformNameMap[platformId]] = content.trim()
+                if (!res.ok) {
+                    const errorMsg = await res.text()
+                    console.error(`Gemini API error for ${platformId}:`, errorMsg)
+                    throw new Error(`Gemini API error: ${res.status}`)
+                }
+
+                const data = await res.json()
+
+                // 提取最终内容（过滤掉思考过程）
+                let content = ''
+                const candidates = data.candidates || []
+                if (candidates.length > 0) {
+                    const parts = candidates[0].content?.parts || []
+                    // Gemini 3 Flash Preview 可能会返回多个 part，其中包含 thought: true 的部分需要过滤
+                    for (const part of parts) {
+                        if (part.text && !part.thought) {
+                            content += part.text
+                        }
+                    }
+                }
+
+                if (!content) {
+                    console.error('Empty content from Gemini for platform:', platformId, JSON.stringify(data))
+                    content = '文案生成失败，请重试'
+                }
+
+                content = content.replace(/\*\*/g, '').replace(/\*/g, '')
+                contents[platformNameMap[platformId]] = content.trim()
+            } catch (err) {
+                console.error(`Error generating content for ${platformId}:`, err)
+                contents[platformNameMap[platformId]] = '文案生成失败，请重试'
+            }
         }
 
         // 保存到历史记录

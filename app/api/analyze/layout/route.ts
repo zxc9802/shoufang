@@ -275,24 +275,57 @@ export async function POST(req: NextRequest) {
                 .replace(/{SCENE_PERSONA}/g, sceneInfo.cn)
                 .replace('{SCENE_KEYWORDS}', sceneInfo.keywords)
 
+            const GEMINI_API_KEY = 'sk-dtjQjKcFOba1wPBfyIPrB2ZDOGGAeVjogphNCDTJIp83botC'
+            const GEMINI_ENDPOINT = 'https://yunwu.ai/v1beta/models/gemini-3-flash-preview:generateContent'
+
             try {
-                const scriptRes = await fetch('https://api.deepseek.com/chat/completions', {
+                const scriptRes = await fetch(`${GEMINI_ENDPOINT}?key=${GEMINI_API_KEY}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
                     },
                     body: JSON.stringify({
-                        model: 'deepseek-chat',
-                        messages: [
-                            { role: 'system', content: '你是房产文案专家' },
-                            { role: 'user', content: scriptPrompt }
+                        systemInstruction: {
+                            parts: [{ text: '你是房产文案专家' }]
+                        },
+                        contents: [
+                            {
+                                role: 'user',
+                                parts: [{ text: scriptPrompt }]
+                            }
                         ],
-                        stream: false
+                        generationConfig: {
+                            temperature: 1,
+                            topP: 1,
+                            thinkingConfig: {
+                                includeThoughts: true,
+                                thinkingBudget: 26240
+                            }
+                        }
                     })
                 })
+
+                if (!scriptRes.ok) {
+                    const errorMsg = await scriptRes.text()
+                    console.error('Gemini API error for script generation:', errorMsg)
+                    throw new Error(`Gemini API error: ${scriptRes.status}`)
+                }
+
                 const scriptData = await scriptRes.json()
-                storyScript = scriptData.choices?.[0]?.message?.content?.trim() || ''
+
+                // 提取最终内容（过滤掉思考过程）
+                let content = ''
+                const candidates = scriptData.candidates || []
+                if (candidates.length > 0) {
+                    const parts = candidates[0].content?.parts || []
+                    for (const part of parts) {
+                        if (part.text && !part.thought) {
+                            content += part.text
+                        }
+                    }
+                }
+
+                storyScript = content.trim() || ''
                 // 清理 markdown
                 storyScript = storyScript.replace(/\*\*/g, '').replace(/\*/g, '').replace(/#{1,6}\s*/g, '')
             } catch (e) {
