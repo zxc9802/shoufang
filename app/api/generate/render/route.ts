@@ -42,10 +42,16 @@ async function generateFloorPlanImage(imageUrl: string, styleEn: string): Promis
             return null
         }
 
-        // 使用 Google 原生 API 格式 + 图片输入
-        const response = await fetch(`https://cdn.12ai.org/v1beta/models/gemini-2.5-flash-image:generateContent?key=${apiKey}`, {
+        // 使用 yunwu.ai Gemini 2.5 Flash Image API
+        const GEMINI_IMAGE_KEY = 'sk-JrZjjnwnrtkLV8i3v8K2TSV9CLTpmHqx0twPjDIjyGYfBuYO'
+        const GEMINI_IMAGE_ENDPOINT = 'https://yunwu.ai/v1beta/models/gemini-2.5-flash-image:generateContent'
+
+        const response = await fetch(`${GEMINI_IMAGE_ENDPOINT}?key=${GEMINI_IMAGE_KEY}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${GEMINI_IMAGE_KEY}`
+            },
             body: JSON.stringify({
                 contents: [{
                     parts: [
