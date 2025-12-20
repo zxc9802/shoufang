@@ -224,7 +224,9 @@ export default function Home() {
             body: JSON.stringify({
               userId: user.id,
               imageUrl: publicUrl,
-              styleEn: data.styleEn
+              styleEn: data.styleEn,
+              suggestions: data.storyScript, // 传给 AI 的软装建议
+              analysis: data.analysis       // 传给 AI 的户型分析
             })
           })
 

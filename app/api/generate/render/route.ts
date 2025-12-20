@@ -12,14 +12,32 @@ const getSupabase = () => createClient(
 )
 
 // 使用 yunwu.ai Gemini 3 Pro Image Preview 生成3D效果图
-async function generateFloorPlanImage(imageUrl: string, styleEn: string): Promise<string | null> {
+async function generateFloorPlanImage(imageUrl: string, styleEn: string, suggestions?: string, analysis?: string): Promise<string | null> {
     const GEMINI_IMAGE_KEY = process.env.GEMINI_IMAGE_KEY || 'sk-JrZjjnwnrtkLV8i3v8K2TSV9CLTpmHqx0twPjDIjyGYfBuYO'
     const GEMINI_IMAGE_ENDPOINT = 'https://yunwu.ai/v1beta/models/gemini-3-pro-image-preview:generateContent'
 
-    const prompt = `Transform this floor plan into a 3D bird's eye view interior design render. Keep the exact same room layout and proportions. Add ${styleEn} furniture and decor. Top-down perspective showing all rooms with furniture, professional architectural visualization, warm natural lighting, 8K quality. Generate an image based on this floor plan.`
+    // 构建更详细的提示词，结合软装建议
+    let detailedPrompt = `Transform this floor plan into a 3D bird's eye view interior design render. 
+Keep the exact same room layout, walls, and proportions as seen in the input image.
+Design Style: ${styleEn}.`
+
+    if (analysis) {
+        detailedPrompt += `\nRoom Layout Analysis: ${analysis}`
+    }
+
+    if (suggestions) {
+        detailedPrompt += `\nInterior Design & Furnishing Suggestions: ${suggestions}`
+    }
+
+    detailedPrompt += `\n\nTechnical Requirements:
+- Top-down 3D bird's eye view perspective (dollhouse view).
+- Showing all rooms clearly with furniture and decor.
+- Professional architectural visualization, realistic textures, warm natural lighting, 8K quality.
+- The furniture should be placed according to the room functions and layout.
+Generate an image based on this floor plan and these detailed design requirements.`
 
     try {
-        console.log('调用 yunwu.ai Gemini 3 Pro Image Preview 生成3D效果图...')
+        console.log('调用 yunwu.ai Gemini 3 Pro Image Preview 生成3D效果图 (包含软装建议)...')
 
         // 下载图片并转为 base64
         let imageBase64 = ''
@@ -54,7 +72,7 @@ async function generateFloorPlanImage(imageUrl: string, styleEn: string): Promis
                 contents: [{
                     role: 'user',
                     parts: [
-                        { text: prompt },
+                        { text: detailedPrompt },
                         { inline_data: { mime_type: mimeType, data: imageBase64 } }
                     ]
                 }],
@@ -103,21 +121,18 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabase()
     try {
         const body = await req.json()
-        const { userId, imageUrl, styleEn } = body
+        const { userId, imageUrl, styleEn, suggestions, analysis } = body
 
         if (!userId || !imageUrl || !styleEn) {
             return NextResponse.json({ error: '参数缺失' }, { status: 400 })
         }
 
-        // 验证用户（不扣分，扣分在第一步由于是并行，我们在第一步扣过了 15分）
-        // 这里只是生成，假设第一步已经付费
-
-        console.log('=== 开始生成效果图 API ===')
+        console.log('=== 开始生成效果图 API (带软装建议) ===')
         let birdviewImage = null
 
         // 重试机制
         for (let attempt = 1; attempt <= 3; attempt++) {
-            birdviewImage = await generateFloorPlanImage(imageUrl, styleEn)
+            birdviewImage = await generateFloorPlanImage(imageUrl, styleEn, suggestions, analysis)
             if (birdviewImage) {
                 console.log('✅ 效果图生成成功')
                 break
