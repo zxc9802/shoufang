@@ -153,11 +153,11 @@ export async function POST(req: NextRequest) {
         }
 
         // Step 2: 生成平台文案
-        const customInput = propertyInfo.customInput || ''
+        const customRequirements = propertyInfo.customRequirements || ''
         const highlights = propertyInfo.highlights || []
         const baseInfo = `
 房源信息：
-- 小区：${propertyInfo.community || '优质小区'}
+- 小区：${propertyInfo.communityName || propertyInfo.community || '优质小区'}
 - 面积：${propertyInfo.area || ''}㎡
 - 房型：${propertyInfo.houseType || propertyInfo.layout || ''}
 - 楼层：${propertyInfo.floor || ''}
@@ -166,7 +166,7 @@ export async function POST(req: NextRequest) {
 - 年代：${propertyInfo.year || ''}
 - 价格：${propertyInfo.price || ''}万
 ${highlights.length > 0 ? `\n亮点标签：${highlights.join('、')}` : ''}
-${customInput ? `\n补充信息：${customInput}` : ''}
+${customRequirements ? `\n用户特殊要求：${customRequirements}` : ''}
 
 图片分析：${analysisResult}
 ${sellingPoints.length > 0 ? `\n核心卖点：${sellingPoints.join('、')}` : ''}`

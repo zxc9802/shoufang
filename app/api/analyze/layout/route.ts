@@ -182,11 +182,12 @@ const getSupabase = () => createClient(
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json()
-        const { userId, imageUrl, style, scene } = body
+        const { userId, imageUrl, style, scene, customRequirement } = body
 
         console.log('=== 户型分析 API (Text Only) ===')
         console.log('选择的风格:', style)
         console.log('选择的场景:', scene)
+        console.log('自定义要求:', customRequirement || '无')
 
         if (!userId) {
             return NextResponse.json({ error: '请先登录' }, { status: 401 })
@@ -268,12 +269,17 @@ export async function POST(req: NextRequest) {
                 return lines.join('\n')
             }).join('\n\n')
 
-            const scriptPrompt = STORY_SCRIPT_PROMPT
+            let scriptPrompt = STORY_SCRIPT_PROMPT
                 .replace('{ANALYSIS}', analysis)
                 .replace('{ROOM_SUGGESTIONS}', roomSuggestionsText)
                 .replace('{STYLE_DESCRIPTION}', styleInfo.cn)
                 .replace(/{SCENE_PERSONA}/g, sceneInfo.cn)
                 .replace('{SCENE_KEYWORDS}', sceneInfo.keywords)
+
+            // 如果有自定义要求，添加到提示词中
+            if (customRequirement && customRequirement.trim()) {
+                scriptPrompt += `\n\n【用户特殊要求】\n${customRequirement.trim()}\n请在生成软装建议和场景描述时，优先考虑用户的这些要求。`
+            }
 
             const GEMINI_API_KEY = 'sk-dtjQjKcFOba1wPBfyIPrB2ZDOGGAeVjogphNCDTJIp83botC'
             const GEMINI_ENDPOINT = 'https://yunwu.ai/v1beta/models/gemini-3-flash-preview:generateContent'

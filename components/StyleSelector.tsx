@@ -5,6 +5,7 @@ import { useState } from 'react'
 interface StyleSelectorProps {
     onStyleChange: (style: string) => void
     onSceneChange: (scene: string) => void
+    onCustomRequirementChange?: (requirement: string) => void
 }
 
 const STYLES = [
@@ -103,9 +104,10 @@ const SCENES = [
     }
 ]
 
-export default function StyleSelector({ onStyleChange, onSceneChange }: StyleSelectorProps) {
+export default function StyleSelector({ onStyleChange, onSceneChange, onCustomRequirementChange }: StyleSelectorProps) {
     const [selectedStyle, setSelectedStyle] = useState<string>('cream')
     const [selectedScene, setSelectedScene] = useState<string>('single')
+    const [customRequirement, setCustomRequirement] = useState<string>('')
 
     const handleStyleSelect = (styleId: string) => {
         setSelectedStyle(styleId)
@@ -115,6 +117,11 @@ export default function StyleSelector({ onStyleChange, onSceneChange }: StyleSel
     const handleSceneSelect = (sceneId: string) => {
         setSelectedScene(sceneId)
         onSceneChange(sceneId)
+    }
+
+    const handleCustomRequirementChange = (value: string) => {
+        setCustomRequirement(value)
+        onCustomRequirementChange?.(value)
     }
 
     return (
@@ -203,6 +210,19 @@ export default function StyleSelector({ onStyleChange, onSceneChange }: StyleSel
                         )
                     })}
                 </div>
+            </div>
+
+            {/* 自定义设计要求 */}
+            <div>
+                <h3 className="text-lg font-bold text-white mb-4 px-1">💡 自定义设计要求 <span className="text-white/30 text-sm font-normal">(可选)</span></h3>
+                <textarea
+                    value={customRequirement}
+                    onChange={(e) => handleCustomRequirementChange(e.target.value)}
+                    placeholder="例如：我希望客厅有一个大书架、主卧需要梳妆台、偏好暖色调灯光..."
+                    rows={3}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all resize-none"
+                />
+                <p className="text-xs text-white/30 mt-2 px-1">AI 将根据您的要求调整软装建议和效果图生成</p>
             </div>
         </div>
     )

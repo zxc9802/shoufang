@@ -33,6 +33,7 @@ export default function Home() {
   const [layoutPreview, setLayoutPreview] = useState<string | null>(null)
   const [selectedStyle, setSelectedStyle] = useState('cream')
   const [selectedScene, setSelectedScene] = useState('single')
+  const [customRequirement, setCustomRequirement] = useState('')
   const [layoutResult, setLayoutResult] = useState<any>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [layoutStatus, setLayoutStatus] = useState('')
@@ -73,16 +74,18 @@ export default function Home() {
       setStatus('📤 正在上传图片...')
       const imageUrls: string[] = []
       for (const file of selectedImages) {
-        const fileName = `${Date.now()}_${file.name}`
+        const fileExt = file.name.split('.').pop();
+        const safeName = `img_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+
         const { error: uploadError } = await supabase.storage
           .from('property-images')
-          .upload(fileName, file)
+          .upload(safeName, file)
 
         if (uploadError) throw uploadError
 
         const { data: { publicUrl } } = supabase.storage
           .from('property-images')
-          .getPublicUrl(fileName)
+          .getPublicUrl(safeName)
 
         imageUrls.push(publicUrl)
       }
@@ -173,16 +176,18 @@ export default function Home() {
 
     try {
       setLayoutStatus('📤 正在上传户型图...')
-      const fileName = `layout_${Date.now()}_${layoutImage.name}`
+      const fileExt = layoutImage.name.split('.').pop();
+      const safeName = `layout_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+
       const { error: uploadError } = await supabase.storage
         .from('property-images')
-        .upload(fileName, layoutImage)
+        .upload(safeName, layoutImage)
 
       if (uploadError) throw uploadError
 
       const { data: { publicUrl } } = supabase.storage
         .from('property-images')
-        .getPublicUrl(fileName)
+        .getPublicUrl(safeName)
 
       setLayoutStatus(steps[0])
 
@@ -193,7 +198,8 @@ export default function Home() {
           userId: user.id,
           imageUrl: publicUrl,
           style: selectedStyle,
-          scene: selectedScene
+          scene: selectedScene,
+          customRequirement: customRequirement
         })
       })
 
@@ -399,6 +405,7 @@ export default function Home() {
                 <StyleSelector
                   onStyleChange={setSelectedStyle}
                   onSceneChange={setSelectedScene}
+                  onCustomRequirementChange={setCustomRequirement}
                 />
 
                 <div className="mt-auto">

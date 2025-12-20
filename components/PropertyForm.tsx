@@ -9,6 +9,7 @@ export interface PropertyInfo {
     price: string
     highlights: string[]
     platforms: string[]
+    customRequirements?: string
 }
 
 interface PropertyFormProps {
@@ -30,7 +31,8 @@ export default function PropertyForm({ onSubmit }: PropertyFormProps) {
         communityName: '',
         price: '',
         highlights: [],
-        platforms: ['beike']
+        platforms: ['beike'],
+        customRequirements: ''
     })
 
     const [customHouseType, setCustomHouseType] = useState('')
@@ -189,8 +191,8 @@ export default function PropertyForm({ onSubmit }: PropertyFormProps) {
                                 type="button"
                                 onClick={() => toggleHighlight(highlight)}
                                 className={`px-4 py-2 rounded-full text-sm transition-all border ${isSelected
-                                        ? 'bg-indigo-500 text-white border-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.4)]'
-                                        : 'bg-white/5 text-white/60 border-white/10 hover:border-white/30 hover:bg-white/10'
+                                    ? 'bg-indigo-500 text-white border-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.4)]'
+                                    : 'bg-white/5 text-white/60 border-white/10 hover:border-white/30 hover:bg-white/10'
                                     }`}
                             >
                                 {highlight}
@@ -245,6 +247,21 @@ export default function PropertyForm({ onSubmit }: PropertyFormProps) {
                 )}
             </div>
 
+            {/* 自定义要求 */}
+            <div className="space-y-2">
+                <label className="text-sm font-medium text-indigo-200/80 pl-1">
+                    自定义文案要求 <span className="text-white/30">(可选)</span>
+                </label>
+                <textarea
+                    value={formData.customRequirements || ''}
+                    onChange={(e) => setFormData({ ...formData, customRequirements: e.target.value })}
+                    placeholder="例如：重点突出学区优势、需要强调近期装修情况、希望文案更加年轻化..."
+                    rows={3}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/20 focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all resize-none"
+                />
+                <p className="text-xs text-white/30 pl-1">AI 将根据您的要求调整生成的文案风格和内容</p>
+            </div>
+
             {/* 平台选择 */}
             <div className="space-y-3">
                 <label className="text-sm font-medium text-indigo-200/80 pl-1 flex items-center justify-between">
@@ -260,8 +277,8 @@ export default function PropertyForm({ onSubmit }: PropertyFormProps) {
                                 type="button"
                                 onClick={() => togglePlatform(platform.id)}
                                 className={`relative p-4 rounded-xl border transition-all duration-300 group ${isSelected
-                                        ? 'bg-gradient-to-br from-indigo-600/20 to-purple-600/20 border-indigo-500/50 shadow-lg shadow-indigo-500/10'
-                                        : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
+                                    ? 'bg-gradient-to-br from-indigo-600/20 to-purple-600/20 border-indigo-500/50 shadow-lg shadow-indigo-500/10'
+                                    : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
                                     }`}
                             >
                                 <div className={`text-2xl mb-2 transition-transform duration-300 ${isSelected ? 'scale-110' : 'group-hover:scale-110'}`}>{platform.icon}</div>
