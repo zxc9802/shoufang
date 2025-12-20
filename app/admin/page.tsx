@@ -86,6 +86,35 @@ export default function AdminPage() {
         checkAdmin()
     }, [])
 
+    // 加载卡密列表 - 移到所有条件返回之前
+    const loadCodes = async () => {
+        if (!isAdmin) return  // 如果不是管理员，不加载
+        setLoading(true)
+        let query = supabase
+            .from('redemption_codes')
+            .select('*')
+            .order('created_at', { ascending: false })
+
+        if (filter === 'unused') {
+            query = query.eq('is_used', false)
+        } else if (filter === 'used') {
+            query = query.eq('is_used', true)
+        }
+
+        const { data, error } = await query
+        if (!error && data) {
+            setCodes(data)
+        }
+        setLoading(false)
+    }
+
+    // 这个 useEffect 必须在所有条件返回之前
+    useEffect(() => {
+        if (isAdmin) {
+            loadCodes()
+        }
+    }, [filter, isAdmin])
+
     // 如果正在检查管理员身份，显示加载状态
     if (adminChecking) {
         return (
@@ -119,31 +148,6 @@ export default function AdminPage() {
             </div>
         )
     }
-
-    // 加载卡密列表
-    const loadCodes = async () => {
-        setLoading(true)
-        let query = supabase
-            .from('redemption_codes')
-            .select('*')
-            .order('created_at', { ascending: false })
-
-        if (filter === 'unused') {
-            query = query.eq('is_used', false)
-        } else if (filter === 'used') {
-            query = query.eq('is_used', true)
-        }
-
-        const { data, error } = await query
-        if (!error && data) {
-            setCodes(data)
-        }
-        setLoading(false)
-    }
-
-    useEffect(() => {
-        loadCodes()
-    }, [filter])
 
     // 生成卡密
     const handleGenerate = async () => {
