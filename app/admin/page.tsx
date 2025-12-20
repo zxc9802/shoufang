@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import { Copy, Check, Trash2, Plus, RefreshCw } from 'lucide-react'
+import { Copy, Check, Trash2, Plus, RefreshCw, ShieldX, Lock } from 'lucide-react'
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -37,6 +37,79 @@ export default function AdminPage() {
     const [count, setCount] = useState(1)
     const [copiedId, setCopiedId] = useState<string | null>(null)
     const [filter, setFilter] = useState<'all' | 'unused' | 'used'>('all')
+
+    // 管理员验证状态
+    const [isAdmin, setIsAdmin] = useState<boolean | null>(null)
+    const [adminChecking, setAdminChecking] = useState(true)
+
+    // 验证管理员身份
+    useEffect(() => {
+        const checkAdmin = async () => {
+            setAdminChecking(true)
+            try {
+                const storedUser = localStorage.getItem('user')
+                if (!storedUser) {
+                    setIsAdmin(false)
+                    setAdminChecking(false)
+                    return
+                }
+
+                const user = JSON.parse(storedUser)
+                // 从数据库验证管理员身份
+                const { data, error } = await supabase
+                    .from('users')
+                    .select('is_admin')
+                    .eq('id', user.id)
+                    .single()
+
+                if (error || !data) {
+                    setIsAdmin(false)
+                } else {
+                    setIsAdmin(data.is_admin === true)
+                }
+            } catch (e) {
+                console.error('Admin check error:', e)
+                setIsAdmin(false)
+            }
+            setAdminChecking(false)
+        }
+
+        checkAdmin()
+    }, [])
+
+    // 如果正在检查管理员身份，显示加载状态
+    if (adminChecking) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+                <div className="text-center">
+                    <RefreshCw className="w-12 h-12 text-white/60 animate-spin mx-auto mb-4" />
+                    <p className="text-white/60">验证管理员身份...</p>
+                </div>
+            </div>
+        )
+    }
+
+    // 如果不是管理员，显示拒绝访问页面
+    if (!isAdmin) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+                <div className="text-center bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 max-w-md">
+                    <ShieldX className="w-16 h-16 text-red-400 mx-auto mb-4" />
+                    <h1 className="text-2xl font-bold text-white mb-2">访问被拒绝</h1>
+                    <p className="text-white/60 mb-6">
+                        您没有管理员权限访问此页面。<br />
+                        请使用管理员账号登录后再试。
+                    </p>
+                    <a
+                        href="/"
+                        className="inline-block px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 transition-all"
+                    >
+                        返回首页
+                    </a>
+                </div>
+            </div>
+        )
+    }
 
     // 加载卡密列表
     const loadCodes = async () => {

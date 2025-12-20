@@ -7,6 +7,7 @@ export interface User {
     nickname: string | null
     avatar_url: string | null
     points: number
+    is_admin: boolean
     created_at: string
     last_login_at: string | null
 }
