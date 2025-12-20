@@ -11,16 +11,17 @@ const getSupabase = () => createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// 使用 12AI Gemini (gemini-2.5-flash-image) 生成3D效果图 - 更快的模型
+// 使用 yunwu.ai Gemini 3 Pro Image Preview 生成3D效果图
 async function generateFloorPlanImage(imageUrl: string, styleEn: string): Promise<string | null> {
-    const apiKey = process.env.AI_12_API_KEY || 'sk-E7zBDATYFYZCT1BviXfmTcdgrAUjXR7KV8FJZV8ojnpLoLuU'
+    const GEMINI_IMAGE_KEY = process.env.GEMINI_IMAGE_KEY || 'sk-JrZjjnwnrtkLV8i3v8K2TSV9CLTpmHqx0twPjDIjyGYfBuYO'
+    const GEMINI_IMAGE_ENDPOINT = 'https://yunwu.ai/v1beta/models/gemini-3-pro-image-preview:generateContent'
 
     const prompt = `Transform this floor plan into a 3D bird's eye view interior design render. Keep the exact same room layout and proportions. Add ${styleEn} furniture and decor. Top-down perspective showing all rooms with furniture, professional architectural visualization, warm natural lighting, 8K quality. Generate an image based on this floor plan.`
 
     try {
-        console.log('调用 12AI Gemini (gemini-2.5-flash-image) 生成3D效果图...')
+        console.log('调用 yunwu.ai Gemini 3 Pro Image Preview 生成3D效果图...')
 
-        // 先将图片 URL 转换为 base64
+        // 下载图片并转为 base64
         let imageBase64 = ''
         let mimeType = 'image/jpeg'
 
@@ -42,10 +43,7 @@ async function generateFloorPlanImage(imageUrl: string, styleEn: string): Promis
             return null
         }
 
-        // 使用 yunwu.ai Gemini 2.5 Flash Image API
-        const GEMINI_IMAGE_KEY = 'sk-JrZjjnwnrtkLV8i3v8K2TSV9CLTpmHqx0twPjDIjyGYfBuYO'
-        const GEMINI_IMAGE_ENDPOINT = 'https://yunwu.ai/v1beta/models/gemini-2.5-flash-image:generateContent'
-
+        // 使用 Google 原生 API 格式
         const response = await fetch(`${GEMINI_IMAGE_ENDPOINT}?key=${GEMINI_IMAGE_KEY}`, {
             method: 'POST',
             headers: {
@@ -54,23 +52,21 @@ async function generateFloorPlanImage(imageUrl: string, styleEn: string): Promis
             },
             body: JSON.stringify({
                 contents: [{
+                    role: 'user',
                     parts: [
                         { text: prompt },
                         { inline_data: { mime_type: mimeType, data: imageBase64 } }
                     ]
                 }],
                 generationConfig: {
-                    responseModalities: ['IMAGE'],
-                    imageConfig: {
-                        aspectRatio: '1:1'
-                    }
+                    responseModalities: ['IMAGE']
                 }
             })
         })
 
         if (!response.ok) {
             const errorText = await response.text()
-            console.log('12AI Image API error:', response.status, errorText)
+            console.log('Gemini Image API error:', response.status, errorText)
             return null
         }
 
@@ -81,13 +77,15 @@ async function generateFloorPlanImage(imageUrl: string, styleEn: string): Promis
         if (candidates.length > 0) {
             const parts = candidates[0].content?.parts || []
             for (const part of parts) {
+                // 处理 inlineData (base64)
                 if (part.inlineData?.data) {
                     const imgMime = part.inlineData.mimeType || 'image/png'
                     return `data:${imgMime};base64,${part.inlineData.data}`
                 }
-                if (part.text && part.text.includes('http')) {
-                    const urlMatch = part.text.match(/https?:\/\/[^\s"']+\.(png|jpg|jpeg|webp)/i)
-                    if (urlMatch) return urlMatch[0]
+                // 处理 inline_data (下划线命名)
+                if (part.inline_data?.data) {
+                    const imgMime = part.inline_data.mime_type || 'image/png'
+                    return `data:${imgMime};base64,${part.inline_data.data}`
                 }
             }
         }
@@ -96,7 +94,7 @@ async function generateFloorPlanImage(imageUrl: string, styleEn: string): Promis
         return null
 
     } catch (e) {
-        console.error('12AI image error:', e)
+        console.error('Gemini image generation error:', e)
         return null
     }
 }
