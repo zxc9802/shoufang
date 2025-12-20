@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Coins, LogOut, Gift } from 'lucide-react'
+import { Coins, LogOut, Gift, Shield } from 'lucide-react'
 import { useUserStore } from '@/store/userStore'
+import Link from 'next/link'
 
 interface UserInfoProps {
     onRedeemClick: () => void
@@ -30,6 +31,18 @@ export default function UserInfo({ onRedeemClick }: UserInfoProps) {
             >
                 <Gift className="w-4 h-4 text-purple-300" />
             </button>
+
+            {/* Admin Dashboard Button - Only show for admins */}
+            {user.is_admin && (
+                <Link
+                    href="/admin"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/30 hover:border-red-500/60 text-red-300 hover:text-red-200 transition-all text-xs font-medium"
+                    title="卡密管理后台"
+                >
+                    <Shield className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">管理后台</span>
+                </Link>
+            )}
 
             {/* User Avatar & Menu */}
             <div className="flex items-center gap-3 pl-4 border-l border-white/10">
