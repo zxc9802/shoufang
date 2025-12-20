@@ -47,14 +47,23 @@ export default function AdminPage() {
         const checkAdmin = async () => {
             setAdminChecking(true)
             try {
-                const storedUser = localStorage.getItem('user')
-                if (!storedUser) {
+                // zustand persist 使用 'user-storage' key，格式为 { state: { user: {...} } }
+                const storedData = localStorage.getItem('user-storage')
+                if (!storedData) {
                     setIsAdmin(false)
                     setAdminChecking(false)
                     return
                 }
 
-                const user = JSON.parse(storedUser)
+                const parsed = JSON.parse(storedData)
+                const user = parsed?.state?.user
+
+                if (!user || !user.id) {
+                    setIsAdmin(false)
+                    setAdminChecking(false)
+                    return
+                }
+
                 // 从数据库验证管理员身份
                 const { data, error } = await supabase
                     .from('users')
