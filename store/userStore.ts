@@ -4,9 +4,10 @@ import { persist } from 'zustand/middleware'
 interface User {
     id: string
     email: string
-    username: string
+    username?: string  // 可选，管理员账号可能没有
     points: number
     avatar_url?: string
+    is_admin?: boolean
 }
 
 interface UserStore {

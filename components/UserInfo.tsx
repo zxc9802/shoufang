@@ -34,11 +34,11 @@ export default function UserInfo({ onRedeemClick }: UserInfoProps) {
             {/* User Avatar & Menu */}
             <div className="flex items-center gap-3 pl-4 border-l border-white/10">
                 <div className="text-right hidden sm:block">
-                    <div className="text-white/90 font-medium text-xs leading-none mb-1">{user.username}</div>
-                    <div className="text-white/40 text-[10px] leading-none max-w-[80px] truncate">{user.email}</div>
+                    <div className="text-white/90 font-medium text-xs leading-none mb-1">{user.username || user.email?.split('@')[0] || '用户'}</div>
+                    <div className="text-white/40 text-[10px] leading-none max-w-[80px] truncate">{user.email || ''}</div>
                 </div>
                 <div className="bg-gradient-to-br from-indigo-500 to-purple-500 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-indigo-500/20">
-                    {user.username.charAt(0).toUpperCase()}
+                    {(user.username || user.email || '?').charAt(0).toUpperCase()}
                 </div>
                 <button
                     onClick={logout}
